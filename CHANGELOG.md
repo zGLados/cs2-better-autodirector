@@ -11,7 +11,7 @@
 ### Logging Improvements
 - **Normal mode**: Shows only essential info (data received, switches)
 - **Verbose mode**: Shows all details (GSI data, analysis, positions, decisions)
-- **Log files**: Automatic log files in `logs/autoobserver_[timestamp].log`
+- **Log files**: Automatic log files in `logs/autodirector_[timestamp].log`
 
 ### Console Output Examples
 
@@ -37,9 +37,9 @@
 - Better handling of missing position data
 
 ### Usage
-- Run with verbose mode: `run.bat -v` or `better-autoobserver.exe -v`
-- Normal mode: `run.bat` or `better-autoobserver.exe`
-- Check logs: `logs/autoobserver_[timestamp].log`
+- Run with verbose mode: `run.bat -v` or `cs2-better-autodirector.exe -v`
+- Normal mode: `run.bat` or `cs2-better-autodirector.exe`
+- Check logs: `logs/autodirector_[timestamp].log`
 
 ## Version 1.0.0
 

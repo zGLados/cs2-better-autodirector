@@ -124,15 +124,15 @@ try {
     Write-Host "============================================" -ForegroundColor Cyan
     Write-Host ""
     
-    if (Test-Path "better-autoobserver.exe") {
-        $fileSize = (Get-Item "better-autoobserver.exe").Length
+    if (Test-Path "cs2-better-autodirector.exe") {
+        $fileSize = (Get-Item "cs2-better-autodirector.exe").Length
         $fileSizeMB = [math]::Round($fileSize / 1MB, 2)
         Write-Host "File size: $fileSizeMB MB" -ForegroundColor White
     }
     
     Write-Host ""
     Write-Host "You can now run the program with:" -ForegroundColor White
-    Write-Host "    better-autoobserver.exe" -ForegroundColor Cyan
+    Write-Host "    cs2-better-autodirector.exe" -ForegroundColor Cyan
     Write-Host ""
 } catch {
     Write-Host "ERROR: Build failed" -ForegroundColor Red

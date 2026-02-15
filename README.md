@@ -1,13 +1,13 @@
-# 🎮 Better Auto Observer
+# 🎮 CS2 Better Auto Director
 
 <div align="center">
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║        Better Auto Observer for Counter-Strike               ║
+║        CS2 Better Auto Director                              ║
 ║                                                              ║
 ║  Intelligent automatic spectating                            ║
-║  Automatically switches to exciting player encounters        ║
+║  Automatically switches to exciting player encounters       ║
 ╚══════════════════════════════════════════════════════════════╝
 ```
 
@@ -39,7 +39,7 @@ See [docs/BUILD.md](docs/BUILD.md) for instructions on creating a professional i
 ## 📂 Project Structure
 
 ```
-better-autoobserver/
+cs2-better-autodirector/
 ├── 📄 main.go                    # Main program
 ├── 📄 gsi_server.go             # Game State Integration Server
 ├── 📄 player_analyzer.go        # Intelligent encounter detection
@@ -48,7 +48,7 @@ better-autoobserver/
 ├── 📄 README.md                 # This file
 │
 ├── 📁 config/                   # Configuration files
-│   └── gamestate_integration_autoobserver.cfg
+│   └── gamestate_integration_autodirector.cfg
 │
 ├── 📁 scripts/                  # Build & Setup Scripts
 │   ├── build.bat               # Wrapper to run build.ps1
@@ -115,7 +115,7 @@ For building from source, see [docs/BUILD.md](docs/BUILD.md) for detailed instru
    build.bat
    ```
 
-3. **Done!** The `better-autoobserver.exe` will be created in the root folder.
+3. **Done!** The `cs2-better-autodirector.exe` will be created in the root folder.
 
 ### Method 2: Professional Installer
 
@@ -127,7 +127,7 @@ For creating a professional installer with Inno Setup, see [docs/BUILD.md](docs/
 
 ### 1. Install GSI Config
 
-Copy the file `config/gamestate_integration_autoobserver.cfg` to:
+Copy the file `config/gamestate_integration_autodirector.cfg` to:
 ```
 C:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive\game\csgo\cfg\
 ```
@@ -143,7 +143,7 @@ bind F9 spec_mode_toggle
 ```
 
 **Why is this needed?**
-- Auto Observer uses keys 1-0 to switch between players
+- Auto Director uses keys 1-0 to switch between players
 - Keys 1-0 are normally used for weapons, so we use a toggle system
 - Press **F9** to switch between normal mode (weapons) and spectator mode (player slots)
 
@@ -171,12 +171,12 @@ This runs the program directly without building an .exe (faster for testing).
 
 **Or use the compiled .exe:**
 ```cmd
-better-autoobserver.exe       # Normal mode
-better-autoobserver.exe -v    # Verbose mode
+cs2-better-autodirector.exe       # Normal mode
+cs2-better-autodirector.exe -v    # Verbose mode
 ```
 
 **Logging modes:**
-- **Normal mode**: Shows only essential info (data received, player switches). Detailed logs are written to `logs/autoobserver_[timestamp].log`
+- **Normal mode**: Shows only essential info (data received, player switches). Detailed logs are written to `logs/autodirector_[timestamp].log`
 - **Verbose mode (-v)**: Shows all detailed logs in the console
 
 ### 4. Start CS & Spectate
@@ -233,7 +233,7 @@ The program has **two output destinations** with smart behavior:
 
 **Normal Mode (Default)** - Clean & Focused
 ```cmd
-better-autoobserver.exe
+cs2-better-autodirector.exe
 # or
 .\scripts\run.bat
 ```
@@ -250,9 +250,9 @@ better-autoobserver.exe
 📋 Normal Mode
   → Console: Shows IMPORTANT events only
   → File:    Shows ALL detailed logs
-  → Log file: logs/autoobserver_2026-02-15_14-30-45.log
+  → Log file: logs/autodirector_2026-02-15_14-30-45.log
 =====================================
-[INFO] Starting Better Auto Observer...
+[INFO] Starting CS2 Better Auto Director...
 [INFO] GSI Server started on port 8000
 [INFO] Data received: 10 players
 ⚔️  ENCOUNTER: Player1 (CT) vs Player2 (T) | Distance: 450 units | Priority: 125.5
@@ -263,7 +263,7 @@ better-autoobserver.exe
 
 **Verbose Mode (`-v` flag)** - Everything Visible
 ```cmd
-better-autoobserver.exe -v
+cs2-better-autodirector.exe -v
 # or
 .\scripts\run.bat -v
 ```
@@ -305,7 +305,7 @@ better-autoobserver.exe -v
 **⚡ IMPORTANT: Log files ALWAYS contain ALL details, regardless of console mode!**
 
 ```
-Location: logs/autoobserver_[timestamp].log
+Location: logs/autodirector_[timestamp].log
 Content:  Complete detailed logs (same as verbose mode)
 ```
 
@@ -365,7 +365,7 @@ After making changes, simply recompile with `scripts\build.bat`.
 ## 🐛 Troubleshooting
 
 ### "No data received"
-- ✅ Check if `config/gamestate_integration_autoobserver.cfg` is in the CS cfg folder
+- ✅ Check if `config/gamestate_integration_autodirector.cfg` is in the CS cfg folder
 - ✅ Restart CS after copying the config file
 - ✅ Check if port 8000 is free
 
@@ -376,10 +376,10 @@ This is the **most common issue**. The switches are being triggered but not reac
 1. ✅ **CS2 window MUST be in FOREGROUND** (active/focused window)
    - Switches use keyboard simulation - only works on the active window
    - If you Alt+Tab away, switches won't work
-   - Keep CS in focus while auto-observer is running
+   - Keep CS in focus while auto-director is running
 
 2. ✅ **Run as Administrator** (recommended)
-   - Right-click `better-autoobserver.exe` → "Run as Administrator"
+   - Right-click `cs2-better-autodirector.exe` → "Run as Administrator"
    - This improves keyboard input reliability
 
 3. ✅ **Verify spectator keybinds work** (CRITICAL!)
@@ -396,7 +396,7 @@ This is the **most common issue**. The switches are being triggered but not reac
 **Diagnostic steps:**
 ```cmd
 # Run with verbose logging to see when switches are attempted
-better-autoobserver.exe -v
+cs2-better-autodirector.exe -v
 ```
 
 Look for these messages:

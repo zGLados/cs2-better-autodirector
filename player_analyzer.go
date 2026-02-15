@@ -234,7 +234,17 @@ func PredictEncounters(players []PlayerInfo) []Encounter {
 
 			var distance float64
 			if hasPositionData {
-				distance = CalculateDistance2D(p1.Position, p2.Position)
+				// Check vertical distance - skip if players are on different floors
+				// (e.g., different levels in Nuke, Vertigo, etc.)
+				// Note: Can be adjusted for specific maps if needed
+				zDiff := math.Abs(p1.Position.Z - p2.Position.Z)
+				if zDiff > 250.0 {
+					// Players likely separated by walls/floors - not a real encounter
+					continue
+				}
+
+				// Use 3D distance (including height) for more accurate encounter detection
+				distance = CalculateDistance3D(p1.Position, p2.Position)
 
 				// Determine max encounter distance based on weapons
 				// Normal: 1500 units (rifles)
@@ -790,12 +800,12 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 		})
 
 		if len(players) > 0 {
-			// In freezetime/warmup: ONLY switch on maxTime (every 5s), not based on "best player"
+			// In freezetime/warmup: ONLY switch on maxTime (every 7.5s), not based on "best player"
 			// In other phases: Switch to best player immediately (after rate limit)
 			if roundPhase == "warmup" || roundPhase == "freezetime" {
-				// Force switch mode: only switch every 5 seconds for consistent pacing
+				// Force switch mode: only switch every 7.5 seconds for consistent pacing
 				timeOnCurrent := time.Since(pa.currentPlayerSwitchTime).Seconds()
-				if timeOnCurrent >= 5.0 {
+				if timeOnCurrent >= 7.5 {
 					// Time to switch: find next player (not current, not previous)
 					var nextPlayerID string
 					var currentTeam string
@@ -835,7 +845,7 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 					}
 
 					if nextPlayerID != "" {
-						LogInfo("⏱️  Max time (5s) exceeded in %s - switching for variety", roundPhase)
+						LogInfo("⏱️  Max time (7.5s) exceeded in %s - switching for variety", roundPhase)
 						pa.lastSwitchTime = time.Now()
 						pa.previousSpectatedID = pa.currentSpectatedID
 						pa.currentSpectatedID = nextPlayerID

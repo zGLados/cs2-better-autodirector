@@ -23,7 +23,7 @@ Or double-click `scripts\build.bat`
 This will:
 - ✅ Check if Go and GCC are installed
 - ✅ Download Go dependencies
-- ✅ Compile `better-autoobserver.exe`
+- ✅ Compile `cs2-better-autodirector.exe`
 
 The executable will be created in the root directory.
 

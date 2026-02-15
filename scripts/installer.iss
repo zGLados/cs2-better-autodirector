@@ -1,13 +1,13 @@
-; Better Auto Observer Installer Script for Inno Setup
+; CS2 Better Auto Director Installer Script for Inno Setup
 ; Compile with Inno Setup: https://jrsoftware.org/isinfo.php
 
 [Setup]
-AppName=Better Auto Observer
+AppName=CS2 Better Auto Director
 AppVersion=1.0
-AppPublisher=Better Auto Observer
-DefaultDirName={autopf}\BetterAutoObserver
-DefaultGroupName=Better Auto Observer
-OutputBaseFilename=BetterAutoObserver-Setup
+AppPublisher=CS2 Better Auto Director
+DefaultDirName={autopf}\CS2BetterAutoDirector
+DefaultGroupName=CS2 Better Auto Director
+OutputBaseFilename=CS2BetterAutoDirector-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -22,16 +22,16 @@ Name: "german"; MessagesFile: "compiler:Languages\German.isl"
 
 [Files]
 ; Main program
-Source: "better-autoobserver.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "cs2-better-autodirector.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 ; GSI Config
-Source: "gamestate_integration_autoobserver.cfg"; DestDir: "{app}"; Flags: ignoreversion
+Source: "gamestate_integration_autodirector.cfg"; DestDir: "{app}"; Flags: ignoreversion
 
 ; README
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\Better Auto Observer"; Filename: "{app}\better-autoobserver.exe"
+Name: "{group}\CS2 Better Auto Director"; Filename: "{app}\cs2-better-autodirector.exe"
 Name: "{group}\README"; Filename: "{app}\README.md"
 Name: "{group}\Uninstall"; Filename: "{uninstallexe}"
 

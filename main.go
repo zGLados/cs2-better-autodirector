@@ -10,17 +10,17 @@ import (
 	"time"
 )
 
-// AutoObserver is the main application controller
-type AutoObserver struct {
+// AutoDirector is the main application controller
+type AutoDirector struct {
 	gsiServer  *GSIServer
 	analyzer   *PlayerAnalyzer
 	controller *SpectatorController
 	running    bool
 }
 
-// NewAutoObserver creates a new AutoObserver instance
-func NewAutoObserver() *AutoObserver {
-	return &AutoObserver{
+// NewAutoDirector creates a new AutoDirector instance
+func NewAutoDirector() *AutoDirector {
+	return &AutoDirector{
 		gsiServer:  NewGSIServer("8000"),
 		analyzer:   NewPlayerAnalyzer(),
 		controller: NewSpectatorController(),
@@ -28,8 +28,8 @@ func NewAutoObserver() *AutoObserver {
 	}
 }
 
-// Start starts the Auto-Observer system
-func (ao *AutoObserver) Start() {
+// Start starts the Auto-Director system
+func (ao *AutoDirector) Start() {
 	LogInfo("Starting Better Auto Observer...")
 
 	// Start GSI Server in goroutine
@@ -47,14 +47,14 @@ func (ao *AutoObserver) Start() {
 	ao.mainLoop()
 }
 
-// Stop stops the Auto-Observer system
-func (ao *AutoObserver) Stop() {
+// Stop stops the Auto-Director system
+func (ao *AutoDirector) Stop() {
 	LogInfo("Stopping Auto Observer...")
 	ao.running = false
 }
 
 // mainLoop is the main program loop
-func (ao *AutoObserver) mainLoop() {
+func (ao *AutoDirector) mainLoop() {
 	LogInfo("Auto Observer running. Press Ctrl+C to stop.")
 	LogInfo("Make sure you are in spectator mode in CS2!")
 
@@ -142,7 +142,7 @@ func main() {
 	// Banner
 	fmt.Println(`
 ╔══════════════════════════════════════════════════════════════╗
-║        Better Auto Observer for Counter-Strike              ║
+║        CS2 Better Auto Director                              ║
 ║                                                              ║
 ║  Intelligent automatic spectating                           ║
 ║  Automatically switches to exciting player encounters       ║
@@ -150,7 +150,7 @@ func main() {
 
 SETUP:
 1. Copy config files to CS2 folder:
-   - gamestate_integration_autoobserver.cfg
+   - gamestate_integration_autodirector.cfg
    - spectator_bindings.cfg
    Location: Steam/steamapps/common/Counter-Strike Global Offensive/game/csgo/cfg/
 
@@ -169,10 +169,10 @@ IMPORTANT:
 - Run as Administrator if switches don't work
 - Press Ctrl+C to exit
 
-TIP: Use -v flag for verbose logging (better-autoobserver.exe -v)
+TIP: Use -v flag for verbose logging (cs2-better-autodirector.exe -v)
 
 `)
 
-	observer := NewAutoObserver()
-	observer.Start()
+	director := NewAutoDirector()
+	director.Start()
 }

@@ -1,4 +1,4 @@
-module better-autoobserver
+module cs2-better-autodirector
 
 go 1.21
 

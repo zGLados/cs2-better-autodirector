@@ -1,6 +1,6 @@
 # Binaries
 *.exe
-better-autoobserver.exe
+cs2-better-autodirector.exe
 setup.exe
 
 # Go build artifacts

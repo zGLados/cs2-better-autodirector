@@ -478,7 +478,7 @@ Current values in the code:
 Run with `-v` flag to see detailed priority calculations:
 
 ```cmd
-better-autoobserver.exe -v
+cs2-better-autodirector.exe -v
 ```
 
 **Example output:**
@@ -540,7 +540,7 @@ Z-coordinate (height) is intentionally ignored to treat multi-level encounters a
 
 - [Main README](../README.md) - Project overview and setup
 - [Build Instructions](BUILD.md) - How to compile the project
-- [GSI Configuration](../config/gamestate_integration_autoobserver.cfg) - Game State Integration settings
+- [GSI Configuration](../config/gamestate_integration_autodirector.cfg) - Game State Integration settings
 
 ---
 

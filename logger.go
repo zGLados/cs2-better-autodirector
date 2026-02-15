@@ -31,7 +31,7 @@ func InitLogging(verbose bool) error {
 
 	// Create log file with timestamp (always)
 	timestamp := time.Now().Format("2006-01-02_15-04-05")
-	logFileName := filepath.Join("logs", fmt.Sprintf("autoobserver_%s.log", timestamp))
+	logFileName := filepath.Join("logs", fmt.Sprintf("autodirector_%s.log", timestamp))
 
 	var err error
 	LogFile, err = os.Create(logFileName)
