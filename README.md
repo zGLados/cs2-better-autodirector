@@ -183,12 +183,15 @@ Download and run `CS2BetterAutoDirector-Setup.exe` for a professional installati
 - **Install for me only**: Installs to `%LOCALAPPDATA%\Programs\CS2BetterAutoDirector` (no admin required)
 - **Install for all users**: Installs to `C:\Program Files\CS2BetterAutoDirector` (requires admin, app runs with admin rights)
 
-**Installer Creation:**
-```cmd
-cd scripts
-build-installer.bat
-```
-The installer will be created in the `build/` folder.
+**Get the Installer:**
+1. **Download from GitHub Releases**: [Latest Release](https://github.com/zGLados/cs2-better-autodirector/releases/latest)
+2. **Build locally**:
+   ```cmd
+   cd scripts
+   build-installer.bat
+   ```
+   The installer will be created in the `build/` folder.
+3. **Automated GitHub Actions**: Push a version tag to auto-build (see [docs/BUILD.md](docs/BUILD.md#automated-builds-with-github-actions))
 
 ### Method 2: Portable EXE
 

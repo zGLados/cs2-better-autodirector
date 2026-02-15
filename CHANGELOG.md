@@ -39,9 +39,19 @@
 - `scripts/install-nodejs.ps1` - Auto-install Node.js 20+
 - `scripts/installer.iss` - Inno Setup configuration (176 lines)
 
+**GitHub Actions Integration:**
+- `.github/workflows/build-installer.yml` - Automated CI/CD pipeline
+- **Automatic builds on tags**: `git tag v3.1.0 && git push origin v3.1.0`
+- **Manual workflow dispatch**: Build from GitHub UI
+- **Release automation**: Installer automatically attached to GitHub Releases
+- **Build artifacts**: 90-day retention for manual builds
+- **Build time**: ~8 minutes on GitHub servers
+- **No local dependencies**: Builds without Inno Setup/Node.js installed locally
+
 **Documentation Updates:**
 - Updated [README.md](README.md) with installation methods
 - Updated [docs/BUILD.md](docs/BUILD.md) with detailed installer guide
+- Added [.github/workflows/README.md](.github/workflows/README.md) with CI/CD documentation
 - Added troubleshooting section
 - Added customization guide
 

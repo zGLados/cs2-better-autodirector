@@ -320,3 +320,153 @@ Compression=lzma/fast  ; Faster compilation
 For detailed Inno Setup documentation, see: https://jrsoftware.org/ishelp/
 
 ---
+
+## Automated Builds with GitHub Actions
+
+You can automate the installer build process using GitHub Actions, so every release is built automatically on GitHub's servers.
+
+### Setup
+
+The workflow is already configured in `.github/workflows/build-installer.yml`. No additional setup required.
+
+### Build Methods
+
+#### Method 1: Automatic Build on Release Tag (Recommended)
+
+```bash
+# 1. Update version in CHANGELOG.md, README.md, etc.
+git add .
+git commit -m "Release v3.1.0"
+git push origin main
+
+# 2. Create and push version tag
+git tag -a v3.1.0 -m "Version 3.1.0 - Professional Installer"
+git push origin v3.1.0
+```
+
+**What happens:**
+1. GitHub Actions automatically starts building
+2. ~8 minutes later, build completes
+3. Installer is automatically uploaded to GitHub Releases
+4. Available at: `https://github.com/YOUR_USERNAME/cs2-better-autodirector/releases/tag/v3.1.0`
+
+#### Method 2: Manual Build (Any Branch/Commit)
+
+```bash
+# 1. Go to: https://github.com/YOUR_USERNAME/cs2-better-autodirector/actions
+# 2. Click "Build Windows Installer" workflow
+# 3. Click "Run workflow" → Select branch → "Run workflow"
+# 4. Wait ~8 minutes
+# 5. Download installer from "Artifacts" section
+```
+
+**Use case:** Test builds from feature branches before release.
+
+### GitHub Actions Workflow
+
+The workflow does:
+1. ✅ Sets up Go 1.22
+2. ✅ Sets up Node.js 20
+3. ✅ Installs Wails CLI
+4. ✅ Installs Inno Setup 6
+5. ✅ Builds GUI: `wails build -skipbindings`
+6. ✅ Compiles installer: `ISCC.exe installer.iss`
+7. ✅ Uploads artifact (90 days retention)
+8. ✅ Creates GitHub Release (if triggered by tag)
+
+### Benefits
+
+**Advantages of GitHub Actions:**
+- ✅ **No local dependencies**: Build without Inno Setup or Node.js installed
+- ✅ **Consistent environment**: Same build environment every time
+- ✅ **Automated releases**: Tag → Build → Release (fully automated)
+- ✅ **Team collaboration**: Anyone can trigger builds
+- ✅ **Build logs**: Full transparency, easy debugging
+- ✅ **Free for public repos**: GitHub Actions is free for public repositories
+- ✅ **Multiple platforms**: Can add Linux/macOS builds later
+
+**Build times:**
+- First run: ~8-12 minutes (installs dependencies)
+- Cached runs: ~5-7 minutes (with caching enabled)
+
+### Viewing Build Status
+
+**Check build progress:**
+1. Go to: `https://github.com/YOUR_USERNAME/cs2-better-autodirector/actions`
+2. Click on the running workflow
+3. View real-time logs for each step
+
+**Add build badge to README:**
+```markdown
+![Build Status](https://github.com/YOUR_USERNAME/cs2-better-autodirector/actions/workflows/build-installer.yml/badge.svg)
+```
+
+### Downloading Builds
+
+**From GitHub Releases (tags):**
+1. Go to: `https://github.com/YOUR_USERNAME/cs2-better-autodirector/releases`
+2. Click on the version (e.g., `v3.1.0`)
+3. Download `CS2BetterAutoDirector-Setup.exe` from Assets section
+
+**From Workflow Artifacts (manual builds):**
+1. Go to: `https://github.com/YOUR_USERNAME/cs2-better-autodirector/actions`
+2. Click on workflow run
+3. Scroll to "Artifacts" section
+4. Download `CS2BetterAutoDirector-Setup` (zip file)
+5. Extract `CS2BetterAutoDirector-Setup.exe`
+
+### Customizing the Workflow
+
+Edit `.github/workflows/build-installer.yml` to:
+
+**Add caching (faster builds):**
+```yaml
+- name: Cache Go modules
+  uses: actions/cache@v4
+  with:
+    path: ~/go/pkg/mod
+    key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+- name: Cache Node modules
+  uses: actions/cache@v4
+  with:
+    path: gui/frontend/node_modules
+    key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+```
+
+**Build on different triggers:**
+```yaml
+on:
+  push:
+    branches: [ main ]  # Build on every push to main
+  pull_request:         # Build on pull requests
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly build every Sunday
+```
+
+**Slack/Discord notifications:**
+Add notification steps using GitHub Actions integrations.
+
+### Troubleshooting GitHub Actions
+
+**Build fails at Inno Setup installation:**
+- Check if download URL is still valid in workflow file
+- Inno Setup might have changed their download link
+
+**Build fails at Wails:**
+- Ensure all Go dependencies are committed (`go.mod`, `go.sum`)
+- Check `gui/frontend/package.json` is committed
+- Verify paths in workflow match your project structure
+
+**Installer not attached to release:**
+- Ensure you pushed the tag: `git push origin v3.1.0`
+- Check that tag starts with `v` (e.g., `v3.1.0`, not `3.1.0`)
+- Verify GitHub token permissions in repository settings
+
+**Artifact download issues:**
+- Artifacts expire after 90 days (configurable in workflow)
+- For permanent downloads, use GitHub Releases (tags)
+
+For detailed GitHub Actions documentation, see: https://docs.github.com/en/actions
+
+---
