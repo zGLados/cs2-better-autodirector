@@ -40,6 +40,13 @@ func DumpGameState(gameState map[string]interface{}) {
 			LogVerbose("[DEBUG]   - %s", key)
 		}
 
+		// Check for observer_slot
+		if observerSlot, ok := playerMap["observer_slot"]; ok {
+			LogVerbose("[DEBUG] ✓ observer_slot found: %v", observerSlot)
+		} else {
+			LogVerbose("[DEBUG] ⚠️  NO 'observer_slot' field found")
+		}
+
 		// Check for position data
 		if position, ok := playerMap["position"].(map[string]interface{}); ok {
 			LogVerbose("[DEBUG] Position data found:")

@@ -148,20 +148,24 @@ func main() {
 ╚══════════════════════════════════════════════════════════════╝
 
 SETUP:
-1. Copy 'gamestate_integration_autoobserver.cfg' to:
-   CS2: Steam/steamapps/common/Counter-Strike Global Offensive/game/csgo/cfg/
+1. Copy config files to CS2 folder:
+   - gamestate_integration_autoobserver.cfg
+   - spectator_bindings.cfg
+   Location: Steam/steamapps/common/Counter-Strike Global Offensive/game/csgo/cfg/
 
-2. Start CS2
+2. In CS2 console, run once per session:
+   exec spectator_bindings
+   bind F9 spec_mode_toggle
 
-3. Enter spectator mode (watch a game)
+3. Join spectator mode (GOTV/Demo), press F9 to enable spectator bindings
 
 4. This program will automatically switch between players
 
 IMPORTANT:
-- You must be in spectator mode!
-- The game must be in the foreground for keyboard inputs to work
+- Press F9 to toggle: Spectator mode (1-0 = players) ↔ Normal mode (1-0 = weapons)
+- Test manually: Press F9, then keys 1-9 - camera should switch between players
+- CS2 window must be in foreground for keyboard inputs to work
 - Run as Administrator if switches don't work
-- Position data only available in GOTV/Demo mode (not live spectator)
 - Press Ctrl+C to exit
 
 TIP: Use -v flag for verbose logging (better-autoobserver.exe -v)

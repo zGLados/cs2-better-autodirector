@@ -129,7 +129,33 @@ C:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive\ga
 
 Or use `setup.ps1` from the scripts folder to automatically copy it.
 
-### 2. Start the Program
+### 2. Setup Spectator Keybinds ⚠️ IMPORTANT
+
+Copy `config/spectator_bindings.cfg` to the same folder as above, then in CS2 console:
+```
+exec spectator_bindings
+bind F9 spec_mode_toggle
+```
+
+**Why is this needed?**
+- Auto Observer uses keys 1-0 to switch between players
+- Keys 1-0 are normally used for weapons, so we use a toggle system
+- Press **F9** to switch between normal mode (weapons) and spectator mode (player slots)
+
+**Usage:**
+1. Join a match as spectator
+2. Run in console: `exec spectator_bindings` (only needed once per CS2 session)
+3. Bind toggle key: `bind F9 spec_mode_toggle` (you can use any key instead of F9)
+4. Press **F9** to enable spectator mode → Keys 1-0 now select players
+5. When done spectating, press **F9** again → Keys 1-0 back to weapons
+
+**To verify bindings work:**
+1. Press F9 to enable spectator mode (console shows: "SPECTATOR MODE ON")
+2. Manually press keys 1-9, 0 on your keyboard
+3. If the camera switches to different players → bindings work ✅
+4. If nothing happens → re-run `exec spectator_bindings` ❌
+
+### 3. Start the Program
 
 **Quick Run (for development/testing):**
 ```cmd
@@ -148,7 +174,7 @@ better-autoobserver.exe -v    # Verbose mode
 - **Normal mode**: Shows only essential info (data received, player switches). Detailed logs are written to `logs/autoobserver_[timestamp].log`
 - **Verbose mode (-v)**: Shows all detailed logs in the console
 
-### 3. Start CS & Spectate
+### 4. Start CS & Spectate
 
 1. Launch CS2
 2. Enter **Spectator mode** (GOTV, demo, or as spectator on a server)
@@ -336,9 +362,16 @@ This is the **most common issue**. The switches are being triggered but not reac
    - Right-click `better-autoobserver.exe` → "Run as Administrator"
    - This improves keyboard input reliability
 
-3. ✅ **Test manually first**
-   - In spectator mode, try pressing keys 1-9 manually
-   - If manual keys don't work, there's a CS configuration issue
+3. ✅ **Verify spectator keybinds work** (CRITICAL!)
+   - Make sure you ran `exec spectator_bindings` in CS2 console
+   - Make sure you pressed **F9** to enable spectator mode (console shows "SPECTATOR MODE ON")
+   - In spectator mode, manually press keys 1, 2, 3, etc.
+   - The camera should switch to different players
+   - If manual keys don't work → **spectator mode not enabled or keybinds broken**
+   - Solution: Re-run `exec spectator_bindings` and press F9
+   - Remember: After each CS2 restart, you need to run `exec spectator_bindings` again
+
+4. ✅ **Check verbose logs**
 
 **Diagnostic steps:**
 ```cmd
@@ -348,7 +381,7 @@ better-autoobserver.exe -v
 
 Look for these messages:
 - `[INFO] ➡️  Switching to: PlayerName (Slot X)` - Switch was triggered
-- `[CONTROLLER] ⚠️  If switch didn't work: Make sure CS2 window is in FOCUS!` - Reminder
+- `[CONTROLLER] ✓ Key sequence completed` - Keyboard simulation finished
 
 **If switches work sometimes but not always:**
 - This means CS loses focus intermittently

@@ -23,29 +23,112 @@ func NewSpectatorController() *SpectatorController {
 
 // UpdatePlayerSlots updates the mapping from SteamID to player slot
 func (sc *SpectatorController) UpdatePlayerSlots(gameState map[string]interface{}) {
-	players := GetPlayerInfo(gameState)
+	allPlayers, ok := gameState["allplayers"].(map[string]interface{})
+	if !ok {
+		return
+	}
 
-	// Sort: CT first, then T, then alphabetically
-	sort.Slice(players, func(i, j int) bool {
-		if players[i].Team != players[j].Team {
-			return players[i].Team == "CT"
-		}
-		return players[i].Name < players[j].Name
-	})
-
-	// Assign slots 1-10
 	sc.steamIDToSlot = make(map[string]int)
-	sc.currentPlayers = players
+	sc.currentPlayers = make([]PlayerInfo, 0)
 
-	LogVerbose("[CONTROLLER] Updating player slots for %d players:", len(players))
-	for idx, player := range players {
-		if idx >= 10 {
-			break
+	LogVerbose("[CONTROLLER] Checking for observer_slot in GSI data...")
+
+	// First, try to get observer_slot from GSI data
+	playersWithSlots := make(map[int]PlayerInfo)
+	playersWithoutSlots := make([]PlayerInfo, 0)
+	hasObserverSlot := false
+
+	for steamID, playerData := range allPlayers {
+		playerMap, ok := playerData.(map[string]interface{})
+		if !ok {
+			continue
 		}
-		slot := idx + 1
-		sc.steamIDToSlot[player.SteamID] = slot
-		LogVerbose("[CONTROLLER]   Slot %d: %s (%s) - HP:%d Eq:$%d K:%d",
-			slot, player.Name, player.Team, player.Health, player.EquipmentValue, player.Kills)
+
+		// Extract basic player info
+		name := getStringValue(playerMap, "name")
+		if name == "" || name == "Unknown" {
+			continue
+		}
+
+		team := getStringValue(playerMap, "team")
+		state, _ := playerMap["state"].(map[string]interface{})
+		health := getIntValue(state, "health")
+
+		if health <= 0 {
+			continue
+		}
+
+		matchStats, _ := playerMap["match_stats"].(map[string]interface{})
+		kills := getIntValue(matchStats, "kills")
+
+		weapons, _ := playerMap["weapons"].(map[string]interface{})
+		equipValue := 0
+		for _, weapon := range weapons {
+			weaponMap, _ := weapon.(map[string]interface{})
+			weaponType := getStringValue(weaponMap, "type")
+			if weaponType != "Knife" && weaponType != "C4" && weaponType != "Grenade" {
+				equipValue += getIntValue(weaponMap, "value")
+			}
+		}
+
+		player := PlayerInfo{
+			SteamID:        steamID,
+			Name:           name,
+			Team:           team,
+			Health:         health,
+			Kills:          kills,
+			EquipmentValue: equipValue,
+		}
+
+		// Check if GSI provides observer_slot
+		if observerSlot, ok := playerMap["observer_slot"]; ok {
+			hasObserverSlot = true
+			slot := int(observerSlot.(float64)) + 1 // GSI uses 0-based index
+			playersWithSlots[slot] = player
+			LogVerbose("[CONTROLLER] Player %s has observer_slot: %d", name, slot)
+		} else {
+			playersWithoutSlots = append(playersWithoutSlots, player)
+		}
+	}
+
+	if hasObserverSlot {
+		// Use observer_slot from GSI
+		LogVerbose("[CONTROLLER] ✓ Using observer_slot from GSI data")
+		LogVerbose("[CONTROLLER] Updating player slots for %d players:", len(playersWithSlots))
+
+		for slot := 1; slot <= 10; slot++ {
+			if player, exists := playersWithSlots[slot]; exists {
+				sc.steamIDToSlot[player.SteamID] = slot
+				sc.currentPlayers = append(sc.currentPlayers, player)
+				LogVerbose("[CONTROLLER]   Slot %d: %s (%s) - HP:%d Eq:$%d K:%d",
+					slot, player.Name, player.Team, player.Health, player.EquipmentValue, player.Kills)
+			}
+		}
+	} else {
+		// Fallback: Use custom sorting (old method)
+		LogVerbose("[CONTROLLER] ⚠️  No observer_slot in GSI - using fallback sorting")
+
+		players := playersWithoutSlots
+		// Sort: CT first, then T, then alphabetically
+		sort.Slice(players, func(i, j int) bool {
+			if players[i].Team != players[j].Team {
+				return players[i].Team == "CT"
+			}
+			return players[i].Name < players[j].Name
+		})
+
+		sc.currentPlayers = players
+		LogVerbose("[CONTROLLER] Updating player slots for %d players:", len(players))
+
+		for idx, player := range players {
+			if idx >= 10 {
+				break
+			}
+			slot := idx + 1
+			sc.steamIDToSlot[player.SteamID] = slot
+			LogVerbose("[CONTROLLER]   Slot %d: %s (%s) - HP:%d Eq:$%d K:%d",
+				slot, player.Name, player.Team, player.Health, player.EquipmentValue, player.Kills)
+		}
 	}
 }
 
@@ -98,7 +181,6 @@ func (sc *SpectatorController) SwitchToPlayer(steamID string) bool {
 	time.Sleep(250 * time.Millisecond) // Final pause before next operation
 
 	LogVerbose("[CONTROLLER] ✓ Key sequence completed (3x repetition)")
-	LogInfo("[CONTROLLER] ⚠️  If switch didn't work: Make sure CS2 window is in FOCUS!")
 
 	return true
 }

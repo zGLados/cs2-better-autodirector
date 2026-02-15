@@ -44,8 +44,11 @@ type PlayerAnalyzer struct {
 	minSwitchInterval       time.Duration
 	currentSpectatedID      string
 	positionWarningShown    bool
-	currentPlayerSwitchTime time.Time     // Track when we switched to current player
-	maxStickyTime           time.Duration // Max time to stick with current player
+	currentPlayerSwitchTime time.Time            // Track when we switched to current player
+	maxStickyTime           time.Duration        // Max time to stick with current player
+	lastEncounterPlayers    []string             // SteamIDs of last encounter (to detect upset victories)
+	combatWinnerBonus       map[string]float64   // Temporary bonus for upset victory winners
+	combatWinnerTime        map[string]time.Time // When the bonus was given
 }
 
 // NewPlayerAnalyzer creates a new Player Analyzer
@@ -56,6 +59,9 @@ func NewPlayerAnalyzer() *PlayerAnalyzer {
 		positionWarningShown:    false,
 		currentPlayerSwitchTime: time.Now(),
 		maxStickyTime:           15 * time.Second, // Max 15s on one player
+		lastEncounterPlayers:    make([]string, 0),
+		combatWinnerBonus:       make(map[string]float64),
+		combatWinnerTime:        make(map[string]time.Time),
 	}
 }
 
@@ -298,7 +304,59 @@ func CalculateEncounterPriority(p1, p2 PlayerInfo, distance float64, hasPosition
 func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface{}) string {
 	players := GetPlayerInfo(gameState)
 
-	// PRIORITY: Check if currently spectated player is dead
+	// Check for upset victories: If one player from last encounter died, reward the survivor
+	upsetVictoryOccurred := false
+	upsetWinnerID := ""
+
+	if len(pa.lastEncounterPlayers) == 2 {
+		player1ID := pa.lastEncounterPlayers[0]
+		player2ID := pa.lastEncounterPlayers[1]
+
+		player1Alive := false
+		player2Alive := false
+
+		for _, p := range players {
+			if p.SteamID == player1ID {
+				player1Alive = true
+			}
+			if p.SteamID == player2ID {
+				player2Alive = true
+			}
+		}
+
+		// One died, one survived → combat concluded
+		if player1Alive != player2Alive {
+			winnerID := ""
+			if player1Alive {
+				winnerID = player1ID
+			} else {
+				winnerID = player2ID
+			}
+
+			// If the winner is NOT the player we were spectating → upset victory!
+			if winnerID != pa.currentSpectatedID && pa.currentSpectatedID != "" {
+				// Give significant bonus for upset victory
+				pa.combatWinnerBonus[winnerID] = 100.0
+				pa.combatWinnerTime[winnerID] = time.Now()
+				upsetVictoryOccurred = true
+				upsetWinnerID = winnerID
+				LogInfo("🏆 UPSET VICTORY! %s won the fight - forcing immediate switch!", getPlayerNameByID(winnerID, players))
+			}
+
+			// Clear last encounter
+			pa.lastEncounterPlayers = make([]string, 0)
+		}
+	}
+
+	// Clean up expired combat winner bonuses (older than 10 seconds)
+	for steamID, bonusTime := range pa.combatWinnerTime {
+		if time.Since(bonusTime) > 10*time.Second {
+			delete(pa.combatWinnerBonus, steamID)
+			delete(pa.combatWinnerTime, steamID)
+		}
+	}
+
+	// PRIORITY: Check if currently spectated player is dead OR upset victory occurred
 	if pa.currentSpectatedID != "" {
 		currentPlayerDead := true
 		for _, p := range players {
@@ -312,20 +370,39 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			LogInfo("☠️  Currently spectated player DIED - forcing immediate switch!")
 			pa.currentSpectatedID = "" // Reset to force switch
 			// Skip rate limiting when player dies
+		} else if upsetVictoryOccurred {
+			// Skip rate limiting for upset victory - we want immediate switch to winner
+			LogVerbose("[ANALYZER] Upset victory detected - bypassing rate limit for immediate switch")
 		} else {
+			// Check if clutch situation - use shorter rate limit
+			isClutchSituation := len(players) <= 4
+			switchInterval := pa.minSwitchInterval
+			if isClutchSituation {
+				switchInterval = 1 * time.Second // Faster switching in clutch (1s instead of 2s)
+			}
+
 			// Normal rate limiting for alive player
-			if time.Since(pa.lastSwitchTime) < pa.minSwitchInterval {
+			if time.Since(pa.lastSwitchTime) < switchInterval {
 				timeSinceLastSwitch := time.Since(pa.lastSwitchTime).Seconds()
-				LogVerbose("[ANALYZER] Rate limiting active - waited %.1fs of %.0fs", timeSinceLastSwitch, pa.minSwitchInterval.Seconds())
+				LogVerbose("[ANALYZER] Rate limiting active - waited %.1fs of %.0fs", timeSinceLastSwitch, switchInterval.Seconds())
 				return ""
 			}
 		}
 	} else {
-		// No one spectated yet, check normal rate limit
-		if time.Since(pa.lastSwitchTime) < pa.minSwitchInterval {
-			timeSinceLastSwitch := time.Since(pa.lastSwitchTime).Seconds()
-			LogVerbose("[ANALYZER] Rate limiting active - waited %.1fs of %.0fs", timeSinceLastSwitch, pa.minSwitchInterval.Seconds())
-			return ""
+		// No one spectated yet, check normal rate limit (or clutch rate limit)
+		// BUT: Skip if upset victory occurred
+		if !upsetVictoryOccurred {
+			isClutchSituation := len(players) <= 4
+			switchInterval := pa.minSwitchInterval
+			if isClutchSituation {
+				switchInterval = 1 * time.Second // Faster switching in clutch
+			}
+
+			if time.Since(pa.lastSwitchTime) < switchInterval {
+				timeSinceLastSwitch := time.Since(pa.lastSwitchTime).Seconds()
+				LogVerbose("[ANALYZER] Rate limiting active - waited %.1fs of %.0fs", timeSinceLastSwitch, switchInterval.Seconds())
+				return ""
+			}
 		}
 	}
 
@@ -335,6 +412,26 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 	}
 
 	LogVerbose("[ANALYZER] Found %d alive players", len(players))
+
+	// PRIORITY: If upset victory just occurred, switch to winner immediately
+	if upsetVictoryOccurred && upsetWinnerID != "" {
+		// Verify winner is still alive
+		winnerAlive := false
+		for _, p := range players {
+			if p.SteamID == upsetWinnerID {
+				winnerAlive = true
+				break
+			}
+		}
+
+		if winnerAlive && upsetWinnerID != pa.currentSpectatedID {
+			LogInfo("🎯 Switching to upset victory winner immediately!")
+			pa.lastSwitchTime = time.Now()
+			pa.currentSpectatedID = upsetWinnerID
+			pa.currentPlayerSwitchTime = time.Now()
+			return upsetWinnerID
+		}
+	}
 
 	// Check for position data and warn once
 	if !pa.positionWarningShown {
@@ -402,9 +499,9 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 		baseIsStuckTooLong := timeOnCurrentPlayer > pa.maxStickyTime.Seconds()
 
 		// Exception 1: Clutch situation (few players alive)
-		isClutchSituation := len(players) < 4
+		isClutchSituation := len(players) <= 4
 		if isClutchSituation {
-			LogVerbose("[ANALYZER] 🎯 Clutch situation (%d players alive) - sticky time limit disabled", len(players))
+			LogVerbose("[ANALYZER] 🎯 Clutch situation (%d players alive) - faster switching enabled (1s rate limit, +10 bonus)", len(players))
 		}
 
 		for i := range encounters {
@@ -432,9 +529,21 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 					// Only give bonus if base priority is good enough (>80 = close encounter)
 					// AND we haven't been on this player too long (unless exceptions apply)
 					if originalPriority > 80.0 && !isStuckTooLong {
-						encounters[i].Priority += 30.0 // Reduced from 100 to 30
-						LogVerbose("[ANALYZER] ⭐ Current player in encounter: +30 priority (%.1f → %.1f) [%.1fs on player]",
-							originalPriority, encounters[i].Priority, timeOnCurrentPlayer)
+						// In clutch situations, give smaller bonus to encourage more switching
+						bonusAmount := 30.0
+						if isClutchSituation {
+							bonusAmount = 10.0 // Reduced bonus in clutch for more dynamic switching
+						}
+
+						encounters[i].Priority += bonusAmount
+						LogVerbose("[ANALYZER] ⭐ Current player in encounter: +%.0f priority (%.1f → %.1f) [%.1fs on player]%s",
+							bonusAmount, originalPriority, encounters[i].Priority, timeOnCurrentPlayer,
+							func() string {
+								if isClutchSituation {
+									return " [CLUTCH]"
+								}
+								return ""
+							}())
 					} else if isStuckTooLong {
 						LogVerbose("[ANALYZER] ⏱️  Sticky time exceeded (%.1fs > %.0fs) - no bonus applied",
 							timeOnCurrentPlayer, pa.maxStickyTime.Seconds())
@@ -445,6 +554,23 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			}
 		}
 
+		// Apply combat winner bonus (for upset victories)
+		for i := range encounters {
+			bonus1 := pa.combatWinnerBonus[encounters[i].Player1.SteamID]
+			bonus2 := pa.combatWinnerBonus[encounters[i].Player2.SteamID]
+
+			if bonus1 > 0 {
+				encounters[i].Priority += bonus1
+				LogVerbose("[ANALYZER] 🏆 Combat winner bonus for %s: +%.0f (upset victory)",
+					encounters[i].Player1.Name, bonus1)
+			}
+			if bonus2 > 0 {
+				encounters[i].Priority += bonus2
+				LogVerbose("[ANALYZER] 🏆 Combat winner bonus for %s: +%.0f (upset victory)",
+					encounters[i].Player2.Name, bonus2)
+			}
+		}
+
 		// Re-sort after applying bonuses
 		sort.Slice(encounters, func(i, j int) bool {
 			return encounters[i].Priority > encounters[j].Priority
@@ -452,6 +578,9 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 
 		// Take the most important encounter
 		encounter := encounters[0]
+
+		// Track this encounter for upset victory detection
+		pa.lastEncounterPlayers = []string{encounter.Player1.SteamID, encounter.Player2.SteamID}
 
 		LogInfo("⚔️  ENCOUNTER: %s (%s) vs %s (%s) | Distance: %.0f units | Priority: %.1f",
 			encounter.Player1.Name, encounter.Player1.Team,
@@ -520,6 +649,19 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 		}
 	} else {
 		LogVerbose("[ANALYZER] No encounters detected, using fallback (highest equipment/kills)")
+
+		// Clear last encounter since no active fight
+		pa.lastEncounterPlayers = make([]string, 0)
+
+		// Apply combat winner bonus even in fallback mode
+		for i := range players {
+			if bonus, exists := pa.combatWinnerBonus[players[i].SteamID]; exists {
+				// Add to equipment value for sorting (scaled appropriately)
+				players[i].EquipmentValue += int(bonus * 100) // Scale bonus to equipment value range
+				LogVerbose("[ANALYZER] 🏆 Combat winner bonus for %s in fallback mode", players[i].Name)
+			}
+		}
+
 		// Fallback: Player with highest equipment/kills
 		sort.Slice(players, func(i, j int) bool {
 			if players[i].EquipmentValue != players[j].EquipmentValue {
@@ -585,4 +727,13 @@ func getMapKeys(m map[string]interface{}) []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+func getPlayerNameByID(steamID string, players []PlayerInfo) string {
+	for _, p := range players {
+		if p.SteamID == steamID {
+			return p.Name
+		}
+	}
+	return "Unknown Player"
 }
