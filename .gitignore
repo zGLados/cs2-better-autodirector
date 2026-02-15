@@ -36,6 +36,9 @@ desktop.ini
 *.log
 *.bak
 
+# Local shortcuts
+*.lnk
+
 # Log directory
 logs/
 
