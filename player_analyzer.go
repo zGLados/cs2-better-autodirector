@@ -846,38 +846,31 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 				// Not time to switch yet in freezetime/warmup
 				return ""
 			} else {
-				// Normal game phases: switch to best player
-				bestPlayerID := players[0].SteamID
-				if bestPlayerID != pa.currentSpectatedID {
-					pa.lastSwitchTime = time.Now()
-					pa.previousSpectatedID = pa.currentSpectatedID
-					pa.currentSpectatedID = bestPlayerID
-					pa.currentPlayerSwitchTime = time.Now() // Reset sticky timer
-					return bestPlayerID
+				// Normal game phases (live/timeout): wait at least 5 seconds before switching in fallback
+				timeOnCurrent := time.Since(pa.currentPlayerSwitchTime).Seconds()
+				var minTime float64
+
+				if roundPhase == "timeout" {
+					minTime = 10.0
 				} else {
-					// Already on best player (fallback) - check if we need to force switch in timeout
-					timeOnCurrent := time.Since(pa.currentPlayerSwitchTime).Seconds()
+					minTime = 5.0 // Live phase: also 5 seconds minimum
+				}
 
-					if roundPhase == "timeout" && timeOnCurrent >= 10.0 && len(players) > 1 {
-						// In timeout: switch to different player for variety
-						var nextPlayerID string
-						for _, p := range players {
-							if p.SteamID != pa.currentSpectatedID {
-								nextPlayerID = p.SteamID
-								break
-							}
-						}
-
-						if nextPlayerID != "" {
-							LogInfo("⏱️  Max time (10s) exceeded in timeout - switching for variety")
-							pa.lastSwitchTime = time.Now()
-							pa.previousSpectatedID = pa.currentSpectatedID
-							pa.currentSpectatedID = nextPlayerID
-							pa.currentPlayerSwitchTime = time.Now()
-							return nextPlayerID
-						}
+				// Only switch if we've been on current player long enough
+				if timeOnCurrent >= minTime {
+					bestPlayerID := players[0].SteamID
+					if bestPlayerID != pa.currentSpectatedID && len(players) > 1 {
+						// Switch to best player after minimum time
+						LogInfo("⏱️  Fallback: %.0fs elapsed, switching to better player", timeOnCurrent)
+						pa.lastSwitchTime = time.Now()
+						pa.previousSpectatedID = pa.currentSpectatedID
+						pa.currentSpectatedID = bestPlayerID
+						pa.currentPlayerSwitchTime = time.Now()
+						return bestPlayerID
 					}
 				}
+				// Not enough time elapsed, stay with current player
+				return ""
 			}
 		}
 	}
