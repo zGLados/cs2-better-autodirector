@@ -56,7 +56,7 @@ func (ao *AutoObserver) Stop() {
 // mainLoop is the main program loop
 func (ao *AutoObserver) mainLoop() {
 	LogInfo("Auto Observer running. Press Ctrl+C to stop.")
-	LogInfo("Make sure you are in spectator mode in CS:GO/CS2!")
+	LogInfo("Make sure you are in spectator mode in CS2!")
 
 	updateInterval := 500 * time.Millisecond
 	ticker := time.NewTicker(updateInterval)
@@ -103,6 +103,16 @@ func (ao *AutoObserver) mainLoop() {
 			// Only switch automatically during "live" or "freezetime"
 			if roundPhase == "live" || roundPhase == "freezetime" {
 				LogVerbose("[MAIN] Analyzing game state (phase: %s)...", roundPhase)
+
+				// IMPORTANT: Sync our internal state with actual spectated player from GSI
+				// This prevents us from thinking we're on one player when CS actually switched to another
+				actualSpectatedID := ao.gsiServer.GetCurrentlySpectatedPlayer()
+				if actualSpectatedID != "" && actualSpectatedID != ao.analyzer.currentSpectatedID {
+					LogInfo("🔄 Synced spectated player: CS is on different player than expected")
+					LogVerbose("[MAIN] Expected: %s, Actual: %s", ao.analyzer.currentSpectatedID, actualSpectatedID)
+					ao.analyzer.SyncCurrentPlayer(actualSpectatedID)
+				}
+
 				bestSteamID := ao.analyzer.GetBestPlayerToSpectate(gameState)
 
 				if bestSteamID != "" {
@@ -139,9 +149,9 @@ func main() {
 
 SETUP:
 1. Copy 'gamestate_integration_autoobserver.cfg' to:
-   CS:GO/CS2: Steam/steamapps/common/Counter-Strike Global Offensive/game/csgo/cfg/
+   CS2: Steam/steamapps/common/Counter-Strike Global Offensive/game/csgo/cfg/
 
-2. Start CS:GO/CS2
+2. Start CS2
 
 3. Enter spectator mode (watch a game)
 

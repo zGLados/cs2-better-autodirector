@@ -4,14 +4,16 @@ import (
 	"encoding/json"
 	"net/http"
 	"sync"
+	"time"
 )
 
 // GSIServer receives Game State Integration data from CS
 type GSIServer struct {
-	currentGameState map[string]interface{}
-	mu               sync.RWMutex
-	port             string
-	debugDumped      bool
+	currentGameState    map[string]interface{}
+	mu                  sync.RWMutex
+	port                string
+	debugDumped         bool
+	lastDataReceivedLog time.Time // Track when we last logged "Data received"
 }
 
 // NewGSIServer creates a new GSI Server
@@ -54,9 +56,13 @@ func (s *GSIServer) HandleGameState(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Count players
+	// Count players - but only log every 10 seconds to reduce spam
 	if allPlayers, ok := gameState["allplayers"].(map[string]interface{}); ok {
-		LogInfo("Data received: %d players", len(allPlayers))
+		now := time.Now()
+		if now.Sub(s.lastDataReceivedLog) >= 10*time.Second {
+			LogInfo("Data received: %d players", len(allPlayers))
+			s.lastDataReceivedLog = now
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -73,6 +79,37 @@ func (s *GSIServer) GetCurrentGameState() map[string]interface{} {
 		result[k] = v
 	}
 	return result
+}
+
+// GetCurrentlySpectatedPlayer tries to determine which player is currently being spectated
+// Returns the SteamID of the spectated player, or empty string if unknown
+func (s *GSIServer) GetCurrentlySpectatedPlayer() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	// In spectator mode, GSI has a "player" field that represents the currently spectated player
+	// This is the same field that would be the local player in normal gameplay
+	if player, ok := s.currentGameState["player"].(map[string]interface{}); ok {
+		// Try to get steamid from player data
+		if steamidRaw, ok := player["steamid"]; ok {
+			if steamid, ok := steamidRaw.(string); ok {
+				LogVerbose("[GSI] Currently spectating player with SteamID: %s", steamid)
+				return steamid
+			}
+		}
+	}
+
+	// Alternative: Check if there's observer data
+	if observer, ok := s.currentGameState["observer"].(map[string]interface{}); ok {
+		if steamidRaw, ok := observer["target"]; ok {
+			if steamid, ok := steamidRaw.(string); ok {
+				LogVerbose("[GSI] Observer target SteamID: %s", steamid)
+				return steamid
+			}
+		}
+	}
+
+	return ""
 }
 
 // Start starts the GSI Server

@@ -40,18 +40,22 @@ type Encounter struct {
 
 // PlayerAnalyzer analyzes the game state and finds the best action
 type PlayerAnalyzer struct {
-	lastSwitchTime       time.Time
-	minSwitchInterval    time.Duration
-	currentSpectatedID   string
-	positionWarningShown bool
+	lastSwitchTime          time.Time
+	minSwitchInterval       time.Duration
+	currentSpectatedID      string
+	positionWarningShown    bool
+	currentPlayerSwitchTime time.Time     // Track when we switched to current player
+	maxStickyTime           time.Duration // Max time to stick with current player
 }
 
 // NewPlayerAnalyzer creates a new Player Analyzer
 func NewPlayerAnalyzer() *PlayerAnalyzer {
 	return &PlayerAnalyzer{
-		lastSwitchTime:       time.Now(),
-		minSwitchInterval:    2 * time.Second, // Reduced from 3s for more responsive switching
-		positionWarningShown: false,
+		lastSwitchTime:          time.Now(),
+		minSwitchInterval:       2 * time.Second, // Reduced from 3s for more responsive switching
+		positionWarningShown:    false,
+		currentPlayerSwitchTime: time.Now(),
+		maxStickyTime:           15 * time.Second, // Max 15s on one player
 	}
 }
 
@@ -71,7 +75,7 @@ func CalculateDistance3D(pos1, pos2 Position) float64 {
 }
 
 // parsePositionString parses position from string format "X, Y, Z"
-// CS:GO/CS2 sends position as string like "-1520.06, 430.89, -63.97"
+// CS2 sends position as string like "-1520.06, 430.89, -63.97"
 func parsePositionString(posStr string) Position {
 	parts := strings.Split(posStr, ",")
 	if len(parts) != 3 {
@@ -115,10 +119,10 @@ func GetPlayerInfo(gameState map[string]interface{}) []PlayerInfo {
 		}
 
 		// Extract position
-		// CS:GO/CS2 sends position as STRING in format "X, Y, Z"
+		// CS2 sends position as STRING in format "X, Y, Z"
 		var position Position
 		if posData, hasPos := playerMap["position"]; hasPos {
-			// Try as string first (CS:GO/CS2 format)
+			// Try as string first (CS2 format)
 			if posStr, ok := posData.(string); ok {
 				position = parsePositionString(posStr)
 
@@ -366,7 +370,7 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			LogInfo("❌ CRITICAL: NO POSITION DATA IN GSI!")
 			LogInfo("   The 'position' key is missing from GSI data")
 			LogInfo("   Check that you are in GOTV/Demo mode, not spectator")
-			LogInfo("   Or CS:GO/CS2 is not sending position data at all")
+			LogInfo("   Or CS2 is not sending position data at all")
 			LogInfo("   → Using FALLBACK: equipment/kills only")
 			pa.positionWarningShown = true
 		} else if !hasPositionData {
@@ -387,15 +391,56 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 
 	if len(encounters) > 0 {
 		// Apply bonus to encounters involving the currently spectated player
+		// BUT only if:
+		// 1. The encounter has decent priority (>80) to begin with
+		// 2. We haven't been stuck on this player too long (>15s)
+		//
+		// EXCEPTIONS for sticky time limit:
+		// - Less than 4 players alive (clutch situation) → unlimited sticky time
+		// - Current player in active encounter (Priority >80) → unlimited sticky time
+		timeOnCurrentPlayer := time.Since(pa.currentPlayerSwitchTime).Seconds()
+		baseIsStuckTooLong := timeOnCurrentPlayer > pa.maxStickyTime.Seconds()
+
+		// Exception 1: Clutch situation (few players alive)
+		isClutchSituation := len(players) < 4
+		if isClutchSituation {
+			LogVerbose("[ANALYZER] 🎯 Clutch situation (%d players alive) - sticky time limit disabled", len(players))
+		}
+
 		for i := range encounters {
 			if pa.currentSpectatedID != "" {
 				if encounters[i].Player1.SteamID == pa.currentSpectatedID ||
 					encounters[i].Player2.SteamID == pa.currentSpectatedID {
-					// Give significant bonus to current player's encounters
 					originalPriority := encounters[i].Priority
-					encounters[i].Priority += 100.0
-					LogVerbose("[ANALYZER] ⭐ Current player in encounter: +100 priority (%.1f → %.1f)",
-						originalPriority, encounters[i].Priority)
+
+					// Check if sticky time limit applies
+					isStuckTooLong := baseIsStuckTooLong
+
+					// Exception 1: Clutch situation - no time limit
+					if isClutchSituation {
+						isStuckTooLong = false
+					}
+
+					// Exception 2: Active encounter (Priority >80) - current player is in action
+					if originalPriority > 80.0 {
+						if baseIsStuckTooLong {
+							LogVerbose("[ANALYZER] 🔥 Active encounter detected - sticky time limit disabled for this fight")
+						}
+						isStuckTooLong = false
+					}
+
+					// Only give bonus if base priority is good enough (>80 = close encounter)
+					// AND we haven't been on this player too long (unless exceptions apply)
+					if originalPriority > 80.0 && !isStuckTooLong {
+						encounters[i].Priority += 30.0 // Reduced from 100 to 30
+						LogVerbose("[ANALYZER] ⭐ Current player in encounter: +30 priority (%.1f → %.1f) [%.1fs on player]",
+							originalPriority, encounters[i].Priority, timeOnCurrentPlayer)
+					} else if isStuckTooLong {
+						LogVerbose("[ANALYZER] ⏱️  Sticky time exceeded (%.1fs > %.0fs) - no bonus applied",
+							timeOnCurrentPlayer, pa.maxStickyTime.Seconds())
+					} else {
+						LogVerbose("[ANALYZER] 📉 Priority too low (%.1f < 80) - no bonus applied", originalPriority)
+					}
 				}
 			}
 		}
@@ -468,6 +513,7 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 		if bestPlayerID != pa.currentSpectatedID {
 			pa.lastSwitchTime = time.Now()
 			pa.currentSpectatedID = bestPlayerID
+			pa.currentPlayerSwitchTime = time.Now() // Reset sticky timer
 			return bestPlayerID
 		} else {
 			LogVerbose("[ANALYZER] Already spectating this player, no switch needed")
@@ -487,12 +533,21 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			if bestPlayerID != pa.currentSpectatedID {
 				pa.lastSwitchTime = time.Now()
 				pa.currentSpectatedID = bestPlayerID
+				pa.currentPlayerSwitchTime = time.Now() // Reset sticky timer
 				return bestPlayerID
 			}
 		}
 	}
 
 	return ""
+}
+
+// SyncCurrentPlayer updates the analyzer's internal state to match the actual spectated player from GSI
+// This is called when we detect that CS is spectating a different player than we think
+func (pa *PlayerAnalyzer) SyncCurrentPlayer(steamID string) {
+	pa.currentSpectatedID = steamID
+	pa.currentPlayerSwitchTime = time.Now() // Reset sticky timer to prevent immediate switch
+	LogVerbose("[ANALYZER] Synced to actual spectated player: %s", steamID)
 }
 
 // Helper functions for safe type assertions

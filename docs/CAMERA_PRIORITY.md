@@ -82,39 +82,79 @@ Priority += 20
 
 ---
 
-## ⭐ Current Player Priority Bonus
+## ⭐ Current Player Priority Bonus (Smart Sticky Camera)
 
-**The most important feature:** The system strongly prefers to **stay with the current player** if they're in action.
+**The most important feature:** The system prefers to **stay with the current player** if they're in meaningful action, but switches away if stuck too long or better action is happening.
 
 ### How it works:
 
 1. All encounters are calculated normally
-2. If the **currently spectated player** is in any encounter:
+2. If the **currently spectated player** is in an encounter, check conditions:
+   - ✅ **Base priority must be >80** (close enough for action)
+   - ✅ **Time on current player <15 seconds** (prevent getting stuck)
+   
+   If both conditions are met:
    ```
-   That encounter's priority += 100
+   That encounter's priority += 30
    ```
 3. After re-sorting, if the current player is still in the top encounter, **stay with them**
 
-### Why this matters:
+### Why these limits matter:
 
-✅ **Camera stability** - Less random jumping  
-✅ **Follow the action** - If you're watching a player in a fight, stay with them  
-✅ **Better storytelling** - See kills happen instead of jumping away mid-fight  
+✅ **Camera stability** - Don't jump during active fights  
+✅ **Prevents infinite sticking** - Max 15s on one player forces variety  
+✅ **Action-focused** - Only bonus for close encounters (<1000 units typically)  
+✅ **Balanced** - +30 bonus is enough to prefer current player, but not override much better action  
 
-### Example:
+### Example Scenarios:
 
+**Scenario A: Bonus Applied (Good Action)**
 ```
-Encounter A: Player1 vs Player2
-  Distance: 400 units
-  Base Priority: 120 + 25 (equipment) + 15 (kills) = 160
+Encounter: Player3 vs Player4 (currently spectating Player3)
+  Distance: 600 units  
+  Base Priority: 120 (distance) + 25 (equipment) = 145
+  Time on Player3: 8 seconds
+  ✅ Priority >80 AND <15s → +30 Bonus Applied
+  Total Priority: 175 ✅ Stay with Player3
+```
 
-Encounter B: Player3 vs Player4 (currently spectating Player3)
-  Distance: 800 units  
-  Base Priority: 80 + 30 (equipment) + 20 (kills) = 130
-  + Current Player Bonus: +100
-  Total Priority: 230 ✅ WINNER
+**Scenario B: No Bonus (Too Long) - BUT Active Encounter Exception**
+```
+Encounter: Player3 vs Player5
+  Base Priority: 125 (close fight!)
+  Time on Player3: 18 seconds
+  ❌ Exceeded 15s limit BUT...
+  ✅ Active encounter (Priority >80) → Exception applies!
+  Total Priority: 125 + 30 = 155 ✅ Stay with Player3 (fight in progress)
+```
 
-Result: Stay with Player3 even though Encounter A is closer!
+**Scenario C: No Bonus (Too Long, Low Priority)**
+```
+Encounter: Player3 vs Player6
+  Base Priority: 50 (far away)
+  Time on Player3: 18 seconds
+  ❌ Exceeded 15s limit AND Priority <80
+  Total Priority: 50 → Switch to better encounter
+```
+
+**Scenario D: Clutch Situation Exception**
+```
+Encounter: Player3 vs Player7
+  Distance: 1200 units
+  Base Priority: 70
+  Time on Player3: 25 seconds
+  Players alive: 3 (CT: 2, T: 1)
+  ✅ Clutch situation (<4 players) → No time limit!
+  Total Priority: 70 → Stay with Player3 (limited action available)
+```
+
+**Scenario E: No Bonus (Too Far)**
+```
+Encounter: Player3 vs Player6
+  Distance: 1800 units  
+  Base Priority: 35 (low because far away)
+  ❌ Priority <80 → NO bonus
+  Total Priority: 35 → Switch to closer action
 ```
 
 ---
@@ -194,6 +234,44 @@ Minimum time between switches: 2 seconds (except on player death)
 
 **Exception:** When spectated player dies, switch **immediately** (0s delay)
 
+### 4. **Sticky Time Limit**
+
+Prevent camera from staying on one player indefinitely:
+
+```
+Maximum time on one player: 15 seconds
+```
+
+After 15 seconds, the current player bonus is **removed**, forcing the system to find better action.
+
+**EXCEPTIONS - Sticky time limit is DISABLED in these situations:**
+
+1. **Clutch Situation (< 4 players alive)**
+   - When fewer than 4 players are alive, camera can stay on one player indefinitely
+   - Reason: Limited action available, want to follow the remaining players
+   - Log: `🎯 Clutch situation (X players alive) - sticky time limit disabled`
+
+2. **Active Encounter (Priority >80)**
+   - When current player is in an active, close-range encounter
+   - Reason: Don't interrupt during an ongoing fight
+   - Log: `🔥 Active encounter detected - sticky time limit disabled for this fight`
+
+These exceptions ensure the camera stays stable during critical moments:
+
+### 5. **Minimum Priority Threshold for Bonus**
+
+Current player bonus only applied if encounter is worth watching:
+
+```
+Base Priority must be > 80
+```
+
+This typically means:
+- Distance < 1000 units (medium-close range)
+- OR very high equipment/skill values
+
+**Why:** No point staying with player in boring, far-away encounter
+
 ---
 
 ## 🔄 Complete Decision Flow
@@ -207,22 +285,34 @@ graph TD
     D -->|Yes| F[Get all alive players]
     F --> G[Calculate all encounters < 2000 units]
     G --> H{Current player in any encounter?}
-    H -->|Yes| I[Add +100 bonus to that encounter]
+    H -->|Yes| I1{Less than 4 players alive?}
+    I1 -->|Yes| EX1[🎯 Exception: Clutch - No time limit]
+    I1 -->|No| I2{Time on player < 15s?}
+    I2 -->|No| I3{Base Priority > 80?}
+    I3 -->|Yes| EX2[🔥 Exception: Active encounter - No time limit]
+    I3 -->|No| J1[❌ Sticky time exceeded - NO bonus]
+    I2 -->|Yes| K{Base Priority > 80?}
+    K -->|No| J2[❌ Priority too low - NO bonus]
+    K -->|Yes| L[✅ Add +30 bonus]
+    EX1 --> L
+    EX2 --> L
     H -->|No| J[Continue]
-    I --> J
-    J --> K[Sort by priority]
-    K --> L[Select top encounter]
-    L --> M{Current player in this encounter?}
-    M -->|Yes| N[Stay with current player]
-    M -->|No| O[Calculate player scores]
-    O --> P[Select player with higher score]
-    P --> Q{Target player alive?}
-    Q -->|No| R[Skip switch]
-    Q -->|Yes| S[Execute switch]
-    N --> S
-    C --> S
-    S --> T[Update last switch time]
-    T --> A
+    J1 --> J
+    J2 --> J
+    L --> J
+    J --> M[Sort by priority]
+    M --> N[Select top encounter]
+    N --> O{Current player in this encounter?}
+    O -->|Yes| P[Stay with current player]
+    O -->|No| Q[Calculate player scores]
+    Q --> R[Select player with higher score]
+    R --> S{Target player alive?}
+    S -->|No| T[Skip switch]
+    S -->|Yes| U[Execute switch]
+    P --> U
+    C --> U
+    U --> V[Update last switch time & sticky timer]
+    V --> A
 ```
 
 ---
@@ -346,7 +436,7 @@ Potential enhancements to the priority system:
 
 ### Position Data Format
 
-CS:GO/CS2 sends position as **string format:**
+CS2 sends position as **string format:**
 
 ```json
 "position": "-1520.06, 430.89, -63.97"
@@ -374,7 +464,7 @@ Z-coordinate (height) is intentionally ignored to treat multi-level encounters a
 
 <div align="center">
 
-**Made with ❤️ for the CS:GO/CS2 community**
+**Made with ❤️ for the CS2 community**
 
 [Report Issue](../../issues) • [Request Feature](../../issues)
 

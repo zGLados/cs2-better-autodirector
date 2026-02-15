@@ -44,10 +44,20 @@ func InitLogging(verbose bool) error {
 	mainLogger = log.New(io.MultiWriter(os.Stdout, LogFile), "", log.Ltime)
 
 	if verbose {
-		fmt.Println("Verbose mode enabled - showing all logs in console AND file")
-		fmt.Printf("Log file: %s\n", logFileName)
+		fmt.Println("=====================================")
+		fmt.Println("📊 Verbose Mode Enabled")
+		fmt.Println("  → Console: Shows ALL logs")
+		fmt.Println("  → File:    Shows ALL logs")
+		fmt.Printf("  → Log file: %s\n", logFileName)
+		fmt.Println("=====================================")
 	} else {
-		fmt.Printf("Detailed logs will be written to: %s\n", logFileName)
+		fmt.Println("=====================================")
+		fmt.Println("📋 Normal Mode")
+		fmt.Println("  → Console: Shows IMPORTANT events only")
+		fmt.Println("  → File:    Shows ALL detailed logs")
+		fmt.Printf("  → Log file: %s\n", logFileName)
+		fmt.Println("  → Tip: Run with -v flag for verbose console output")
+		fmt.Println("=====================================")
 	}
 
 	return nil

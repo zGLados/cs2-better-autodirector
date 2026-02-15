@@ -80,20 +80,25 @@ func (sc *SpectatorController) SwitchToPlayer(steamID string) bool {
 	// Hold key down briefly instead of just tapping
 	LogVerbose("[CONTROLLER] Pressing key '%s' (hold method)...", key)
 
-	// Method 1: KeyToggle (more reliable than KeyTap)
-	robotgo.KeyToggle(key, "down")
-	time.Sleep(100 * time.Millisecond)
-	robotgo.KeyToggle(key, "up")
-	time.Sleep(100 * time.Millisecond)
+	// Method: KeyToggle with multiple repetitions for maximum reliability
+	// This helps overcome focus issues and missed key presses
 
-	// Repeat once more for extra reliability
-	robotgo.KeyToggle(key, "down")
-	time.Sleep(100 * time.Millisecond)
-	robotgo.KeyToggle(key, "up")
-	time.Sleep(200 * time.Millisecond)
+	// Repeat 3 times with delays (increased from 2x for better reliability)
+	for i := 0; i < 3; i++ {
+		robotgo.KeyToggle(key, "down")
+		time.Sleep(150 * time.Millisecond) // Increased from 100ms
+		robotgo.KeyToggle(key, "up")
+		time.Sleep(150 * time.Millisecond) // Increased from 100ms
 
-	LogVerbose("[CONTROLLER] ✓ Key sequence completed")
-	LogVerbose("[CONTROLLER] NOTE: CS:GO/CS2 must be in focus for keys to work!")
+		if i < 2 {
+			time.Sleep(50 * time.Millisecond) // Brief pause between repetitions
+		}
+	}
+
+	time.Sleep(250 * time.Millisecond) // Final pause before next operation
+
+	LogVerbose("[CONTROLLER] ✓ Key sequence completed (3x repetition)")
+	LogInfo("[CONTROLLER] ⚠️  If switch didn't work: Make sure CS2 window is in FOCUS!")
 
 	return true
 }

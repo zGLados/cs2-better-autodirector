@@ -150,7 +150,7 @@ better-autoobserver.exe -v    # Verbose mode
 
 ### 3. Start CS & Spectate
 
-1. Launch CS:GO or CS2
+1. Launch CS2
 2. Enter **Spectator mode** (GOTV, demo, or as spectator on a server)
 3. The program takes over automatically!
 
@@ -188,20 +188,33 @@ CS automatically sends game data to `http://localhost:8000`:
 
 ---
 
-## 🔍 Debug Output
+## 🔍 Debug Output & Logging
 
-The program supports two logging modes:
+The program has **two output destinations** with smart behavior:
 
-### Normal Mode (Default)
-**What you see in console:**
-- Data reception confirmations
-- Player switches
-- Important events
+### 📺 Console Output
 
-**Detailed logs are written to:** `logs/autoobserver_[timestamp].log`
+**Normal Mode (Default)** - Clean & Focused
+```cmd
+better-autoobserver.exe
+# or
+.\scripts\run.bat
+```
+
+**Shows only important events:**
+- ✅ Starting/stopping messages
+- ✅ Data reception confirmations  
+- ✅ Player switches (`➡️  Switching to: ...`)
+- ✅ Encounters detected (`⚔️  ENCOUNTER: ...`)
+- ✅ Critical errors or warnings
 
 **Example console output:**
 ```
+📋 Normal Mode
+  → Console: Shows IMPORTANT events only
+  → File:    Shows ALL detailed logs
+  → Log file: logs/autoobserver_2026-02-15_14-30-45.log
+=====================================
 [INFO] Starting Better Auto Observer...
 [INFO] GSI Server started on port 8000
 [INFO] Data received: 10 players
@@ -209,33 +222,66 @@ The program supports two logging modes:
 ➡️  Switching to: Player1 (Slot 3)
 ```
 
-### Verbose Mode (`-v` flag)
-**Shows everything in console:**
-- All GSI data reception
-- Round phase changes
-- Player analysis details
-- Encounter detection
-- Rate limiting info
-- Position data
+---
+
+**Verbose Mode (`-v` flag)** - Everything Visible
+```cmd
+better-autoobserver.exe -v
+# or
+.\scripts\run.bat -v
+```
+
+**Shows ALL events in console:**
+- ✅ All GSI data reception
+- ✅ Round phase changes
+- ✅ Player position updates
+- ✅ Encounter detection details
+- ✅ Priority calculations
+- ✅ Rate limiting info
+- ✅ Debug messages
 
 **Example verbose output:**
 ```
+📊 Verbose Mode Enabled
+  → Console: Shows ALL logs
+  → File:    Shows ALL logs
+=====================================
 [GSI] Round Phase: live
 [MAIN] Analyzing game state (phase: live)...
-[ANALYZER] Found 10 players
-[ANALYZER] Player Player1 position: X=1234.5 Y=567.8 Z=90.1
+[ANALYZER] Found 10 alive players
+[ANALYZER] ✓ Player Player1 position: X=1234.5 Y=567.8 Z=90.1
 [ANALYZER] Detected 2 potential encounters
+[ANALYZER] 🎯 Clutch situation (3 players alive) - sticky time limit disabled
 ⚔️  ENCOUNTER: Player1 (CT) vs Player2 (T) | Distance: 450 units | Priority: 125.5
-[ANALYZER] → Switching to Player1 (better equipment/kills)
+[ANALYZER] → Switching to Player1 (score: 125.5 vs 98.3)
 [CONTROLLER] Updating player slots for 10 players:
 [CONTROLLER]   Slot 1: Player1 (CT) - HP:100 Eq:$4750 K:3
 ➡️  Switching to: Player1 (Slot 3)
+[CONTROLLER] Pressing key '3' (hold method)...
+[CONTROLLER] ✓ Key sequence completed (3x repetition)
 ```
 
-**Use verbose mode for:**
-- Debugging issues
-- Understanding why switches happen (or don't)
-- Seeing position data to diagnose distance calculation problems
+---
+
+### 📄 Log File Output
+
+**⚡ IMPORTANT: Log files ALWAYS contain ALL details, regardless of console mode!**
+
+```
+Location: logs/autoobserver_[timestamp].log
+Content:  Complete detailed logs (same as verbose mode)
+```
+
+**This means:**
+- 🎯 **Run without `-v`** = Clean console, detailed log file ✅ **RECOMMENDED**
+- 🔍 **Run with `-v`** = Detailed console + detailed log file (for active debugging)
+
+**Use the log file to:**
+- Diagnose why switches didn't happen
+- See position data and distance calculations
+- Understand priority decisions
+- Debug encounter detection
+- Review complete game state history
 
 ---
 
@@ -277,13 +323,45 @@ After making changes, simply recompile with `scripts\build.bat`.
 - ✅ Restart CS after copying the config file
 - ✅ Check if port 8000 is free
 
-### "Players not switching" or "Distance: 0 units"
-- ✅ CS must be in the **foreground**
-- ✅ You must be in **Spectator mode** (not as a player)
-- ✅ Test if keys 1-9, 0 work manually
+### **"Switches not working" or "Switches only sometimes work"** ⚠️ IMPORTANT
+This is the **most common issue**. The switches are being triggered but not reaching CS2.
+
+**Required conditions:**
+1. ✅ **CS2 window MUST be in FOREGROUND** (active/focused window)
+   - Switches use keyboard simulation - only works on the active window
+   - If you Alt+Tab away, switches won't work
+   - Keep CS in focus while auto-observer is running
+
+2. ✅ **Run as Administrator** (recommended)
+   - Right-click `better-autoobserver.exe` → "Run as Administrator"
+   - This improves keyboard input reliability
+
+3. ✅ **Test manually first**
+   - In spectator mode, try pressing keys 1-9 manually
+   - If manual keys don't work, there's a CS configuration issue
+
+**Diagnostic steps:**
+```cmd
+# Run with verbose logging to see when switches are attempted
+better-autoobserver.exe -v
+```
+
+Look for these messages:
+- `[INFO] ➡️  Switching to: PlayerName (Slot X)` - Switch was triggered
+- `[CONTROLLER] ⚠️  If switch didn't work: Make sure CS2 window is in FOCUS!` - Reminder
+
+**If switches work sometimes but not always:**
+- This means CS loses focus intermittently
+- Keep CS window in foreground consistently
+- Don't click on other windows while program is running
+- Consider using a second monitor to view logs
+
+### "Distance: 0 units" or "No encounters detected"
+- ✅ You must be in **GOTV/Demo playback mode**
+- ✅ Won't work in live spectator mode (position data not sent)
 - ✅ Run with `-v` flag to see position data: `run.bat -v`
-  - If positions are all 0, the GSI might not be sending position data
-  - Make sure you're in GOTV/Demo playback, not free camera mode
+  - If positions are all 0, GSI might not be sending position data
+  - Make sure you're not in free camera mode
 
 ### Build error
 - ✅ Install GCC if you see "GCC not found" message
