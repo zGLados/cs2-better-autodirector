@@ -201,7 +201,60 @@ Once the best encounter is identified, the system chooses which player to specta
 
 ## 🛡️ Safety Mechanisms
 
-### 1. **Dead Player Prevention**
+### 1. **Phase-Based Switching** 🆕
+
+The system adapts switching behavior based on the current game phase:
+
+#### 🔄 **Freezetime / Warmup (Buy Phase)**
+```
+Maximum time per player: 5 seconds
+Rate limit: 2 seconds (balanced pacing)
+Behavior: Alternates between CT and T teams for variety
+```
+
+**Why moderate timing?** During buy phase, there's no action happening. Regular switching (every 5 seconds) keeps viewers engaged by showing:
+- Both teams' economy and buys
+- Different player perspectives
+- Team positioning and strategies
+
+**Team Alternation:** When max time (5s) is reached in freezetime:
+1. Try to switch to a player from the **opposite team** (avoiding recently viewed players)
+2. If no opposite team player available, switch to any different player
+3. This ensures viewers see both CT and T perspectives without repetition
+
+#### ⏸️ **Timeout**
+```
+Maximum time per player: 10 seconds
+Rate limit: 2 seconds
+Behavior: Switch between players for variety
+```
+
+#### 🎮 **Live Rounds (Normal Game)**
+```
+Maximum time per player: 15 seconds (base)
+Rate limit: 2 seconds
+Extended limits:
+  - Active encounter (Priority >140): 25 seconds
+  - Clutch situation (<4 players): 25 seconds
+```
+
+**Why longer?** During live rounds:
+- Fights can develop over time
+- Players move strategically
+- Extended viewing allows watching full engagements
+
+#### ⚡ **Clutch Mode** (<4 Players Alive)
+```
+Maximum time: 25 seconds (extended)
+Rate limit: 1 second (faster)
+Bonus: +10 (reduced from +30 to encourage switching)
+```
+
+Faster switching ensures all remaining players get camera time in critical moments.
+
+---
+
+### 2. **Dead Player Prevention**
 
 Before every switch, verify the target player is still alive:
 
@@ -224,26 +277,37 @@ if currently spectated player not in alive players {
 }
 ```
 
-### 3. **Rate Limiting**
+### 3. **Rate Limiting (Phase-Adaptive)**
 
-Prevent camera from switching too frequently:
+Prevent camera from switching too frequently - adapts to game phase:
 
 ```
-Minimum time between switches: 2 seconds (except on player death)
+Freezetime/Warmup: 2 seconds (balanced pacing)
+Timeout: 2 seconds
+Live/Normal: 2 seconds
+Clutch (<4 players): 1 second (faster action)
 ```
 
 **Exception:** When spectated player dies, switch **immediately** (0s delay)
 
-### 4. **Sticky Time Limit**
+### 4. **Sticky Time Limit (Phase-Dependent)**
 
-Prevent camera from staying on one player indefinitely:
+Prevent camera from staying on one player indefinitely - varies by phase:
 
 ```
-Normal situations: 15 seconds maximum
+Freezetime/Warmup: 5 seconds maximum (variety with nice pacing)
+Timeout: 10 seconds maximum
+Normal live rounds: 15 seconds maximum
 Clutch/Active encounters: 25 seconds maximum (absolute limit)
 ```
 
-After 15 seconds (or 25s in special situations), the current player bonus is **removed**, forcing the system to find better action.
+After the phase-specific time limit, the current player bonus is **removed** or the system forces a switch to a different player.
+
+**Phase-specific behavior:**
+
+- **Freezetime/Warmup:** After 5 seconds, **force switch** to different player (preferably opposite team, avoiding recently viewed)
+- **Timeout:** After 10 seconds, force switch for variety
+- **Live rounds:** After 15 seconds normal, 25s for active encounters
 
 **EXTENDED TIME LIMITS - Up to 25 seconds in these situations:**
 
@@ -393,11 +457,19 @@ Current values in the code:
 
 | Parameter | Value | Purpose |
 |-----------|-------|---------|
-| `minSwitchInterval` | 2 seconds | Minimum time between normal switches |
+| **Phase-Based Times** | | |
+| Freezetime/Warmup max time | 5 seconds | Regular switching in buy phase |
+| Freezetime/Warmup rate limit | 2 seconds | Balanced pacing for viewers |
+| Timeout max time | 10 seconds | Moderate switching during timeout |
+| Timeout rate limit | 2 seconds | Normal rate limiting |
+| Live rounds max time | 15 seconds | Allow encounter development |
+| Live rate limit | 2 seconds | Prevent excessive switching |
+| Clutch rate limit | 1 second | Faster switching in critical moments |
+| Extended max time | 25 seconds | Active fights & clutch (absolute max) |
+| **Priority Values** | | |
 | `maxEncounterDistance` | 2000 units | Maximum distance for encounter detection |
-| `currentPlayerBonus` | +100 | Priority bonus for current player's encounters |
-| `closeRangePriority` | +150 | Bonus for < 300 unit encounters |
-| `mediumRangePriority` | +80 | Bonus for 600-1000 unit encounters |
+| `currentPlayerBonus` | +30 | Priority bonus for current player's encounters |
+| `currentPlayerBonusClutch` | +10 | Reduced bonus in clutch for more switching |
 
 ---
 

@@ -75,7 +75,12 @@ better-autoobserver/
 - Prioritizes close-range fights (< 300 units = +150 priority!)
 - **Camera stability:** Stays with current player if they're in action
 - **Dead player detection:** Immediately switches away when spectated player dies
-- Rate limiting: 2 seconds between switches (bypassed on player death)
+- **Phase-aware switching:**
+  - 🔄 **Freezetime/Warmup**: 5 seconds max per player with team alternation for dynamic viewing
+  - ⏸️ **Timeout**: 10 seconds max per player
+  - 🎮 **Live rounds**: 15 seconds max (25s during active encounters)
+  - ⚡ **Clutch situations** (≤4 players): 1 second rate limit for faster action
+- Rate limiting: Adaptive (2s in freezetime, 1s in clutch, 2s normal)
 
 📊 **Sophisticated Priority Algorithm**
 - Distance-based (150 to 20 points based on range)
@@ -210,7 +215,13 @@ CS automatically sends game data to `http://localhost:8000`:
    - ❤️ **Low HP**: +15-30 points
    - 🛠️ **Defuser**: +20 points
 
-**3. Auto-Switch**: Switches to the player with the highest action priority
+**3. Phase-Aware Behavior**:
+   - 🔄 **Freezetime/Warmup**: Max 5 seconds per player, alternates between CT/T teams
+   - ⏸️ **Timeout**: Max 10 seconds per player for variety
+   - 🎮 **Live rounds**: Smart encounter tracking with extended viewing (15-25s)
+   - ⚡ **Clutch mode**: Faster switching when ≤4 players alive
+
+**4. Auto-Switch**: Switches to the player with the highest action priority
 
 ---
 
@@ -313,11 +324,20 @@ Content:  Complete detailed logs (same as verbose mode)
 
 ## ⚙️ Configuration
 
-### Adjust Switching Interval
+### Adjust Switching Intervals
 
-In [player_analyzer.go](player_analyzer.go#L25):
+In [player_analyzer.go](player_analyzer.go):
 ```go
-minSwitchInterval: 3 * time.Second  // Minimum time between switches
+// Phase-specific switching timers
+case "warmup", "freezetime":
+    maxTimeOnPlayer = 5.0              // 5 seconds max in buy phase
+    switchInterval = 2 * time.Second   // 2 second rate limit for better pacing
+case "timeout":
+    maxTimeOnPlayer = 10.0             // 10 seconds max during timeout
+    switchInterval = 2 * time.Second
+default:  // Live rounds
+    maxTimeOnPlayer = 15.0             // 15 seconds max (25s during fights)
+    switchInterval = 2 * time.Second   // Normal rate limit
 ```
 
 ### Adjust Encounter Distances

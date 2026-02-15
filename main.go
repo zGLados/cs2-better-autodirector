@@ -100,8 +100,9 @@ func (ao *AutoObserver) mainLoop() {
 				lastRoundPhase = roundPhase
 			}
 
-			// Only switch automatically during "live" or "freezetime"
-			if roundPhase == "live" || roundPhase == "freezetime" {
+			// Only switch automatically during gameplay phases (not gameover, paused, etc.)
+			// Allow: live, freezetime, warmup, timeout
+			if roundPhase == "live" || roundPhase == "freezetime" || roundPhase == "warmup" || roundPhase == "timeout" {
 				LogVerbose("[MAIN] Analyzing game state (phase: %s)...", roundPhase)
 
 				// IMPORTANT: Sync our internal state with actual spectated player from GSI
@@ -113,7 +114,7 @@ func (ao *AutoObserver) mainLoop() {
 					ao.analyzer.SyncCurrentPlayer(actualSpectatedID)
 				}
 
-				bestSteamID := ao.analyzer.GetBestPlayerToSpectate(gameState)
+				bestSteamID := ao.analyzer.GetBestPlayerToSpectate(gameState, roundPhase)
 
 				if bestSteamID != "" {
 					ao.controller.SwitchToPlayer(bestSteamID)
@@ -121,7 +122,7 @@ func (ao *AutoObserver) mainLoop() {
 					LogVerbose("[MAIN] No player switch needed (rate limiting or no encounters)")
 				}
 			} else {
-				LogVerbose("[MAIN] Waiting for live/freezetime phase (current: %s)", roundPhase)
+				LogVerbose("[MAIN] Waiting for gameplay phase (current: %s)", roundPhase)
 			}
 		}
 	}

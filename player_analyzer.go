@@ -61,6 +61,7 @@ type PlayerAnalyzer struct {
 	lastSwitchTime          time.Time
 	minSwitchInterval       time.Duration
 	currentSpectatedID      string
+	previousSpectatedID     string // Track previous player to avoid immediate back-switching
 	positionWarningShown    bool
 	currentPlayerSwitchTime time.Time            // Track when we switched to current player
 	maxStickyTime           time.Duration        // Max time to stick with current player
@@ -341,7 +342,7 @@ func CalculateEncounterPriority(p1, p2 PlayerInfo, distance float64, hasPosition
 }
 
 // GetBestPlayerToSpectate finds the best player to observe
-func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface{}) string {
+func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface{}, roundPhase string) string {
 	players := GetPlayerInfo(gameState)
 
 	// Check for upset victories: If one player from last encounter died, reward the survivor
@@ -414,28 +415,56 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			// Skip rate limiting for upset victory - we want immediate switch to winner
 			LogVerbose("[ANALYZER] Upset victory detected - bypassing rate limit for immediate switch")
 		} else {
-			// Check if clutch situation - use shorter rate limit
-			isClutchSituation := len(players) <= 4
+			// Phase-specific switching logic
 			switchInterval := pa.minSwitchInterval
-			if isClutchSituation {
-				switchInterval = 1 * time.Second // Faster switching in clutch (1s instead of 2s)
+			maxTimeOnPlayer := pa.maxStickyTime.Seconds()
+
+			switch roundPhase {
+			case "warmup", "freezetime":
+				// Warmup/Freezetime: max 5 seconds per player for dynamic viewing
+				maxTimeOnPlayer = 5.0
+				switchInterval = 2 * time.Second // 2 second rate limit for better pacing
+				LogVerbose("[ANALYZER] 🔄 %s mode - max %.0fs per player (dynamic)", roundPhase, maxTimeOnPlayer)
+			case "timeout":
+				// Timeout: max 10 seconds per player
+				maxTimeOnPlayer = 10.0
+				switchInterval = 2 * time.Second
+				LogVerbose("[ANALYZER] ⏸️  Timeout mode - max %.0fs per player", maxTimeOnPlayer)
+			default:
+				// Normal game: clutch situation check
+				isClutchSituation := len(players) <= 4
+				if isClutchSituation {
+					switchInterval = 1 * time.Second // Faster switching in clutch
+				}
 			}
 
-			// Normal rate limiting for alive player
-			if time.Since(pa.lastSwitchTime) < switchInterval {
+			// Check if we've been on current player too long (forced switch)
+			timeOnCurrentPlayer := time.Since(pa.currentPlayerSwitchTime).Seconds()
+			if timeOnCurrentPlayer >= maxTimeOnPlayer {
+				// Force immediate switch by bypassing rate limit (don't log yet, wait until we actually switch)
+			} else if time.Since(pa.lastSwitchTime) < switchInterval {
+				// Normal rate limiting for alive player
 				timeSinceLastSwitch := time.Since(pa.lastSwitchTime).Seconds()
 				LogVerbose("[ANALYZER] Rate limiting active - waited %.1fs of %.0fs", timeSinceLastSwitch, switchInterval.Seconds())
 				return ""
 			}
 		}
 	} else {
-		// No one spectated yet, check normal rate limit (or clutch rate limit)
+		// No one spectated yet, check normal rate limit
 		// BUT: Skip if upset victory occurred
 		if !upsetVictoryOccurred {
-			isClutchSituation := len(players) <= 4
 			switchInterval := pa.minSwitchInterval
-			if isClutchSituation {
-				switchInterval = 1 * time.Second // Faster switching in clutch
+
+			switch roundPhase {
+			case "warmup", "freezetime":
+				switchInterval = 2 * time.Second // 2 second for better pacing
+			case "timeout":
+				switchInterval = 2 * time.Second
+			default:
+				isClutchSituation := len(players) <= 4
+				if isClutchSituation {
+					switchInterval = 1 * time.Second // Faster switching in clutch
+				}
 			}
 
 			if time.Since(pa.lastSwitchTime) < switchInterval {
@@ -696,7 +725,46 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			pa.currentPlayerSwitchTime = time.Now() // Reset sticky timer
 			return bestPlayerID
 		} else {
-			LogVerbose("[ANALYZER] Already spectating this player, no switch needed")
+			// Already on this player - check if we need to force switch in warmup/freezetime/timeout
+			timeOnCurrent := time.Since(pa.currentPlayerSwitchTime).Seconds()
+			var maxTime float64
+			forceSwitch := false
+
+			switch roundPhase {
+			case "warmup", "freezetime":
+				maxTime = 5.0
+				forceSwitch = true
+			case "timeout":
+				maxTime = 10.0
+				forceSwitch = true
+			default:
+				maxTime = pa.maxStickyTime.Seconds()
+			}
+
+			if timeOnCurrent >= maxTime {
+				if forceSwitch {
+					// In warmup/freezetime/timeout: switch to the other player in encounter for variety
+					var alternativeID string
+					if encounter.Player1.SteamID == pa.currentSpectatedID {
+						alternativeID = encounter.Player2.SteamID
+					} else {
+						alternativeID = encounter.Player1.SteamID
+					}
+
+					LogInfo("⏱️  Max time (%.0fs) exceeded in %s - switching for variety", maxTime, roundPhase)
+					pa.lastSwitchTime = time.Now()
+					pa.previousSpectatedID = pa.currentSpectatedID
+					pa.currentSpectatedID = alternativeID
+					pa.currentPlayerSwitchTime = time.Now()
+					return alternativeID
+				} else {
+					// Normal game: reset timer with offset to retry later
+					LogVerbose("[ANALYZER] Max time exceeded but already on best player - will retry in 3s")
+					pa.currentPlayerSwitchTime = time.Now().Add(-time.Duration(maxTime-3) * time.Second)
+				}
+			} else {
+				LogVerbose("[ANALYZER] Already spectating this player, no switch needed")
+			}
 		}
 	} else {
 		LogVerbose("[ANALYZER] No encounters detected, using fallback (highest equipment/kills)")
@@ -722,12 +790,94 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 		})
 
 		if len(players) > 0 {
-			bestPlayerID := players[0].SteamID
-			if bestPlayerID != pa.currentSpectatedID {
-				pa.lastSwitchTime = time.Now()
-				pa.currentSpectatedID = bestPlayerID
-				pa.currentPlayerSwitchTime = time.Now() // Reset sticky timer
-				return bestPlayerID
+			// In freezetime/warmup: ONLY switch on maxTime (every 5s), not based on "best player"
+			// In other phases: Switch to best player immediately (after rate limit)
+			if roundPhase == "warmup" || roundPhase == "freezetime" {
+				// Force switch mode: only switch every 5 seconds for consistent pacing
+				timeOnCurrent := time.Since(pa.currentPlayerSwitchTime).Seconds()
+				if timeOnCurrent >= 5.0 {
+					// Time to switch: find next player (not current, not previous)
+					var nextPlayerID string
+					var currentTeam string
+
+					// Find current player's team
+					for _, p := range players {
+						if p.SteamID == pa.currentSpectatedID {
+							currentTeam = p.Team
+							break
+						}
+					}
+
+					// First try to find player from opposite team (but not the previous player)
+					for _, p := range players {
+						if p.SteamID != pa.currentSpectatedID && p.SteamID != pa.previousSpectatedID && p.Team != currentTeam && p.Team != "Unknown" {
+							nextPlayerID = p.SteamID
+							break
+						}
+					}
+					// If still no player found, try opposite team without previous player restriction
+					if nextPlayerID == "" {
+						for _, p := range players {
+							if p.SteamID != pa.currentSpectatedID && p.Team != currentTeam && p.Team != "Unknown" {
+								nextPlayerID = p.SteamID
+								break
+							}
+						}
+					}
+					// If no opposite team player found, just take next different player
+					if nextPlayerID == "" {
+						for _, p := range players {
+							if p.SteamID != pa.currentSpectatedID {
+								nextPlayerID = p.SteamID
+								break
+							}
+						}
+					}
+
+					if nextPlayerID != "" {
+						LogInfo("⏱️  Max time (5s) exceeded in %s - switching for variety", roundPhase)
+						pa.lastSwitchTime = time.Now()
+						pa.previousSpectatedID = pa.currentSpectatedID
+						pa.currentSpectatedID = nextPlayerID
+						pa.currentPlayerSwitchTime = time.Now()
+						return nextPlayerID
+					}
+				}
+				// Not time to switch yet in freezetime/warmup
+				return ""
+			} else {
+				// Normal game phases: switch to best player
+				bestPlayerID := players[0].SteamID
+				if bestPlayerID != pa.currentSpectatedID {
+					pa.lastSwitchTime = time.Now()
+					pa.previousSpectatedID = pa.currentSpectatedID
+					pa.currentSpectatedID = bestPlayerID
+					pa.currentPlayerSwitchTime = time.Now() // Reset sticky timer
+					return bestPlayerID
+				} else {
+					// Already on best player (fallback) - check if we need to force switch in timeout
+					timeOnCurrent := time.Since(pa.currentPlayerSwitchTime).Seconds()
+
+					if roundPhase == "timeout" && timeOnCurrent >= 10.0 && len(players) > 1 {
+						// In timeout: switch to different player for variety
+						var nextPlayerID string
+						for _, p := range players {
+							if p.SteamID != pa.currentSpectatedID {
+								nextPlayerID = p.SteamID
+								break
+							}
+						}
+
+						if nextPlayerID != "" {
+							LogInfo("⏱️  Max time (10s) exceeded in timeout - switching for variety")
+							pa.lastSwitchTime = time.Now()
+							pa.previousSpectatedID = pa.currentSpectatedID
+							pa.currentSpectatedID = nextPlayerID
+							pa.currentPlayerSwitchTime = time.Now()
+							return nextPlayerID
+						}
+					}
+				}
 			}
 		}
 	}
