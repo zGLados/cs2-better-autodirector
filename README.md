@@ -21,18 +21,31 @@
 
 ## ⚡ Quick Start
 
-### Option 1: Direct Build
+### 🎨 Run with GUI (Recommended)
+
+Simply double-click or run:
+```cmd
+cs2-better-autodirector.exe
+```
+→ Opens a beautiful dashboard with live stats, player tables, encounters, and event logs!
+
+### 💻 Run in CLI Mode (Terminal)
 
 ```cmd
-cd scripts
-build.bat
+cs2-better-autodirector.exe -nogui       # CLI mode without GUI
+cs2-better-autodirector.exe -nogui -v    # CLI mode with verbose logging
 ```
 
-Requires: [Go](https://go.dev/dl/) + [TDM-GCC](https://jmeubank.github.io/tdm-gcc/download/)
+### 🔨 Build from Source
 
-### Option 2: Professional Installer
+```cmd
+cd cs2-autodirector-gui
+wails build
+```
 
-See [docs/BUILD.md](docs/BUILD.md) for instructions on creating a professional installer using Inno Setup.
+Requires: [Go](https://go.dev/dl/) + [Node.js](https://nodejs.org/)
+
+See [docs/BUILD.md](docs/BUILD.md) for detailed build instructions.
 
 ---
 
@@ -40,24 +53,40 @@ See [docs/BUILD.md](docs/BUILD.md) for instructions on creating a professional i
 
 ```
 cs2-better-autodirector/
-├── 📄 main.go                    # Main program
-├── 📄 gsi_server.go             # Game State Integration Server
-├── 📄 player_analyzer.go        # Intelligent encounter detection
-├── 📄 spectator_controller.go   # Keyboard simulation
-├── 📄 go.mod                    # Go dependencies
-├── 📄 README.md                 # This file
+├── 📄 cs2-better-autodirector.exe   # Main executable (GUI + CLI)
+├── 📄 README.md                     # This file
 │
-├── 📁 config/                   # Configuration files
-│   └── gamestate_integration_autodirector.cfg
+├── 📁 cs2-autodirector-gui/         # Wails GUI Application
+│   ├── 📄 main.go                   # Entry point (GUI + CLI mode)
+│   ├── 📄 app.go                    # GUI backend bindings
+│   ├── 📄 autodirector.go           # AutoDirector logic
+│   ├── 📄 gsi_server.go             # Game State Integration
+│   ├── 📄 player_analyzer.go        # Encounter detection AI
+│   ├── 📄 spectator_controller.go   # Keyboard simulation
+│   ├── 📄 logger.go                 # Logging system
+│   ├── 📄 wails.json                # Wails configuration
+│   │
+│   ├── 📁 frontend/                 # Dashboard UI
+│   │   ├── 📁 src/
+│   │   │   ├── main.js              # Frontend logic
+│   │   │   ├── dashboard.css        # Dashboard styling
+│   │   │   └── app.css              # Base styles
+│   │   └── 📁 wailsjs/              # Generated bindings
+│   │
+│   └── 📁 build/                    # Build output
+│       └── 📁 bin/
+│           └── cs2-better-autodirector.exe
 │
-├── 📁 scripts/                  # Build & Setup Scripts
-│   ├── build.bat               # Wrapper to run build.ps1
-│   ├── build.ps1               # Main build script
-│   ├── setup.ps1               # Setup with config copy
-│   └── installer.iss           # Inno Setup Script
+├── 📁 config/                       # Configuration files
+│   ├── gamestate_integration_autodirector.cfg
+│   └── spectator_bindings.cfg
 │
-└── 📁 docs/                     # Documentation
-    └── BUILD.md                # Build instructions
+├── 📁 docs/                         # Documentation
+│   ├── BUILD.md                    # Build instructions
+│   └── CAMERA_PRIORITY.md          # Priority system docs
+│
+└── 📁 logs/                         # Runtime logs
+    └── autodirector_[timestamp].log
 ```
 
 ---
@@ -105,10 +134,24 @@ cs2-better-autodirector/
   - Detects underdog wins (+100 bonus)
   - Immediate switch to winner
 
+🎨 **Modern GUI Dashboard**
+- Live status display (current player, uptime, switches)
+- Real-time player table (HP, armor, K/D, weapons, money)
+- Top encounters rankings with priorities
+- Live event log stream
+- Statistics dashboard (sniper kills, upset victories, damage detections)
+- Dark gaming-style theme
+- Built with Wails (native Windows application)
+
+💻 **CLI Mode Available**
+- Run with `-nogui` flag for terminal mode
+- Same functionality without graphical interface
+- Perfect for servers or headless setups
+
 🚀 **Standalone EXE**
 - No installation required
-- Single .exe file
-- Small and performant (~8-15 MB)
+- Single .exe file (~12 MB)
+- Dual-mode: GUI (default) or CLI (-nogui)
 
 ---
 
@@ -177,22 +220,28 @@ bind F9 spec_mode_toggle
 
 ### 3. Start the Program
 
-**Quick Run (for development/testing):**
+**🎨 GUI Mode (Default - Recommended):**
 ```cmd
-run.bat              # Normal mode with minimal output
-run.bat -v           # Verbose mode with detailed logs
+cs2-better-autodirector.exe
 ```
-This runs the program directly without building an .exe (faster for testing).
+Opens a beautiful dashboard window with:
+- Live status & statistics
+- Real-time player table
+- Top encounters rankings
+- Event log stream
+- Start/Stop controls
 
-**Or use the compiled .exe:**
+**💻 CLI Mode (Terminal/Headless):**
 ```cmd
-cs2-better-autodirector.exe       # Normal mode
-cs2-better-autodirector.exe -v    # Verbose mode
+cs2-better-autodirector.exe -nogui       # CLI mode
+cs2-better-autodirector.exe -nogui -v    # CLI mode with verbose logging
 ```
+Runs in terminal without GUI - same functionality as before.
 
-**Logging modes:**
-- **Normal mode**: Shows only essential info (data received, player switches). Detailed logs are written to `logs/autodirector_[timestamp].log`
-- **Verbose mode (-v)**: Shows all detailed logs in the console
+**Logging:**
+- **GUI mode**: Logs shown in dashboard + written to `logs/autodirector_[timestamp].log`
+- **CLI normal mode**: Essential info only, detailed logs in files
+- **CLI verbose mode (-v)**: All logs in console + files
 
 ### 4. Start CS & Spectate
 
@@ -432,14 +481,66 @@ Look for these messages:
   - Make sure you're not in free camera mode
 
 ### Build error
-- ✅ Install GCC if you see "GCC not found" message
-- ✅ After Go installation: Open a **new terminal**
+- ✅ Install Node.js if building GUI version
+- ✅ Run `wails doctor` to check dependencies
+- ✅ After Go/Node installation: Open a **new terminal**
 - ✅ The build script will guide you to download requirements
 
 ### "robotgo error" or "GCC not found"
 1. Install [TDM-GCC](https://jmeubank.github.io/tdm-gcc/download/)
 2. Install with default settings
-3. Open a new terminal and run `scripts\build.bat` again
+3. Open a new terminal and run build again
+
+---
+
+## ❓ FAQ
+
+### What's the difference between GUI and CLI mode?
+
+**🎨 GUI Mode (Default):**
+- Opens a window with live dashboard
+- Shows real-time player stats, encounters, logs
+- Start/Stop controls in the interface
+- Best for: Observing, monitoring, learning how system works
+- **Run:** `cs2-better-autodirector.exe`
+
+**💻 CLI Mode (`-nogui`):**
+- Runs in terminal without window
+- Same functionality, just no visual interface
+- Best for: Servers, headless setups, low resource usage
+- **Run:** `cs2-better-autodirector.exe -nogui`
+
+**Both modes:**
+- ✅ Same switching logic and AI
+- ✅ Same configuration files
+- ✅ Same port (3000)
+- ✅ Same features (sniper detection, damage tracking, etc.)
+
+### Can I use the old CLI version?
+
+Yes! Just run with `-nogui` flag:
+```cmd
+cs2-better-autodirector.exe -nogui
+cs2-better-autodirector.exe -nogui -v    # with verbose logging
+```
+
+This gives you the classic terminal-only experience.
+
+### Does the GUI affect performance?
+
+No. The GUI updates independently and doesn't affect the switching logic or speed. The AutoDirector runs in a separate background thread.
+
+### How do I start the GUI automatically with CS2?
+
+Create a shortcut to `cs2-better-autodirector.exe` and add it to your Windows startup folder, or use Task Scheduler to launch it automatically.
+
+### Can I run multiple instances?
+
+No, only one instance can use port 3000 at a time. If you need multiple instances, you would need to modify the port in the code.
+
+### Do I need to rebuild the old CLI version?
+
+No! The new `cs2-better-autodirector.exe` includes both GUI and CLI. Just use the `-nogui` flag for CLI mode.
 
 ---
 

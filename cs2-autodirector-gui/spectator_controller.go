@@ -94,7 +94,6 @@ func (sc *SpectatorController) UpdatePlayerSlots(gameState map[string]interface{
 		if observerSlot, ok := playerMap["observer_slot"]; ok {
 			hasObserverSlot = true
 			slot := int(observerSlot.(float64)) + 1 // GSI uses 0-based index
-			player.Slot = slot
 			playersWithSlots[slot] = player
 			LogVerbose("[CONTROLLER] Player %s has observer_slot: %d", name, slot)
 		} else {

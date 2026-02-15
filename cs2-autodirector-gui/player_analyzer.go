@@ -60,19 +60,19 @@ func isAWP(weapon string) bool {
 }
 
 // getSniperWeaponBonus returns bonus points for sniper weapons (AWP > Scout)
-func getSniperWeaponBonus(weapon string) float64 {
+func (pa *PlayerAnalyzer) getSniperWeaponBonus(weapon string) float64 {
 	if weapon == "weapon_awp" {
-		return 30.0 // AWP gets higher bonus
+		return pa.Settings.AWPBonus
 	} else if weapon == "weapon_ssg08" {
-		return 15.0 // Scout gets lower bonus
+		return pa.Settings.ScoutBonus
 	}
 	return 0.0
 }
 
 // getRifleWeaponBonus returns bonus points for rifles (AK-47 priority over M4s)
-func getRifleWeaponBonus(weapon string) float64 {
+func (pa *PlayerAnalyzer) getRifleWeaponBonus(weapon string) float64 {
 	if weapon == "weapon_ak47" {
-		return 5.0 // AK-47 gets bonus over M4s
+		return pa.Settings.AK47Bonus
 	} else if weapon == "weapon_m4a1" || weapon == "weapon_m4a1_silencer" {
 		return 0.0 // M4s are baseline
 	}
@@ -124,6 +124,14 @@ type PlayerAnalyzer struct {
 	playerHealth            map[string]int       // Track health per player for damage detection
 	damageDealtBonus        map[string]float64   // Temporary bonus for damage dealers
 	damageDealtTime         map[string]time.Time // When damage dealt bonus was given
+
+	// Public stats counters (for GUI)
+	TotalSniperKills      int
+	TotalUpsetVictories   int
+	TotalDamageDetections int
+
+	// Settings
+	Settings *Settings
 }
 
 // NewPlayerAnalyzer creates a new Player Analyzer
@@ -133,6 +141,7 @@ func NewPlayerAnalyzer() *PlayerAnalyzer {
 		minSwitchInterval:       2 * time.Second, // Reduced from 3s for more responsive switching
 		positionWarningShown:    false,
 		currentPlayerSwitchTime: time.Now(),
+		Settings:                LoadSettings(),   // Load settings from file or use defaults
 		maxStickyTime:           15 * time.Second, // Max 15s on one player
 		lastEncounterPlayers:    make([]string, 0),
 		combatWinnerBonus:       make(map[string]float64),
@@ -272,7 +281,7 @@ func GetPlayerInfo(gameState map[string]interface{}) []PlayerInfo {
 }
 
 // PredictEncounters finds potential encounters between players
-func PredictEncounters(players []PlayerInfo) []Encounter {
+func (pa *PlayerAnalyzer) PredictEncounters(players []PlayerInfo) []Encounter {
 	var encounters []Encounter
 
 	// Check if we have position data
@@ -300,7 +309,7 @@ func PredictEncounters(players []PlayerInfo) []Encounter {
 				// (e.g., different levels in Nuke, Vertigo, etc.)
 				// Note: Can be adjusted for specific maps if needed
 				zDiff := math.Abs(p1.Position.Z - p2.Position.Z)
-				if zDiff > 250.0 {
+				if zDiff > pa.Settings.VerticalDiffThreshold {
 					// Players likely separated by walls/floors - not a real encounter
 					continue
 				}
@@ -309,12 +318,12 @@ func PredictEncounters(players []PlayerInfo) []Encounter {
 				distance = CalculateDistance3D(p1.Position, p2.Position)
 
 				// Determine max encounter distance based on weapons
-				// Normal: 1500 units (rifles)
-				// Long-range (AWP/SSG/AUG/SG/Deagle): 2500 units
-				maxDistance := 1500.0
+				// Normal: configurable (default 1500 units)
+				// Long-range (AWP/SSG/AUG/SG/Deagle): configurable + 1000 units
+				maxDistance := pa.Settings.MaxEncounterDistance
 				hasLongRange := isLongRangeWeapon(p1.ActiveWeapon) || isLongRangeWeapon(p2.ActiveWeapon)
 				if hasLongRange {
-					maxDistance = 2500.0
+					maxDistance = pa.Settings.MaxEncounterDistance + 1000.0
 				}
 
 				if distance >= maxDistance {
@@ -453,8 +462,9 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			// If the winner is NOT the player we were spectating → upset victory!
 			if winnerID != pa.currentSpectatedID && pa.currentSpectatedID != "" {
 				// Give significant bonus for upset victory
-				pa.combatWinnerBonus[winnerID] = 100.0
+				pa.combatWinnerBonus[winnerID] = pa.Settings.UpsetVictoryBonus
 				pa.combatWinnerTime[winnerID] = time.Now()
+				pa.TotalUpsetVictories++ // Increment stats counter
 				upsetVictoryOccurred = true
 				upsetWinnerID = winnerID
 				LogInfo("🏆 UPSET VICTORY! %s won the fight - forcing immediate switch!", getPlayerNameByID(winnerID, players))
@@ -465,17 +475,17 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 		}
 	}
 
-	// Clean up expired combat winner bonuses (older than 10 seconds)
+	// Clean up expired combat winner bonuses (older than configured duration)
 	for steamID, bonusTime := range pa.combatWinnerTime {
-		if time.Since(bonusTime) > 10*time.Second {
+		if time.Since(bonusTime) > time.Duration(pa.Settings.UpsetVictoryDuration)*time.Second {
 			delete(pa.combatWinnerBonus, steamID)
 			delete(pa.combatWinnerTime, steamID)
 		}
 	}
 
-	// Clean up expired sniper kill bonuses (older than 8 seconds)
+	// Clean up expired sniper kill bonuses (older than configured duration)
 	for steamID, bonusTime := range pa.sniperKillTime {
-		if time.Since(bonusTime) > 8*time.Second {
+		if time.Since(bonusTime) > time.Duration(pa.Settings.SniperKillDuration)*time.Second {
 			delete(pa.sniperKillBonus, steamID)
 			delete(pa.sniperKillTime, steamID)
 		}
@@ -500,9 +510,9 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			// Check if it was a sniper kill
 			if isSniperRifle(p.ActiveWeapon) {
 				// Give massive bonus for sniper kills
-				bonusAmount := 150.0
+				bonusAmount := pa.Settings.SniperKillBonus
 				if isAWP(p.ActiveWeapon) {
-					bonusAmount = 200.0 // AWP kills get even higher priority
+					bonusAmount = pa.Settings.SniperKillBonus * 1.5 // AWP kills get even higher priority
 					LogInfo("🎯 AWP KILL by %s - immediate priority!", p.Name)
 				} else {
 					LogInfo("🎯 SNIPER KILL by %s - high priority!", p.Name)
@@ -510,6 +520,7 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 
 				pa.sniperKillBonus[p.SteamID] = bonusAmount
 				pa.sniperKillTime[p.SteamID] = time.Now()
+				pa.TotalSniperKills++ // Increment stats counter
 				sniperKillDetected = true
 				sniperKillerID = p.SteamID
 			} else if strings.Contains(p.ActiveWeapon, "grenade") || strings.Contains(p.ActiveWeapon, "molotov") || strings.Contains(p.ActiveWeapon, "incendiary") {
@@ -522,9 +533,9 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 		}
 	}
 
-	// Clean up expired damage dealt bonuses (older than 5 seconds)
+	// Clean up expired damage dealt bonuses (older than configured duration)
 	for steamID, bonusTime := range pa.damageDealtTime {
-		if time.Since(bonusTime) > 5*time.Second {
+		if time.Since(bonusTime) > time.Duration(pa.Settings.DamageDealtDuration)*time.Second {
 			delete(pa.damageDealtBonus, steamID)
 			delete(pa.damageDealtTime, steamID)
 		}
@@ -554,9 +565,7 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 		if exists && currentHealth < oldHealth {
 			healthLost := oldHealth - currentHealth
 
-			if healthLost >= 20 {
-				LogVerbose("[ANALYZER] 🩸 %s lost %d HP (now: %d)", victim.Name, healthLost, currentHealth)
-
+			if healthLost >= pa.Settings.MinHealthLoss {
 				// Only proceed with damage dealer identification if we have position data
 				if !hasPositionData {
 					LogVerbose("[ANALYZER] ⚠️  No position data - cannot identify damage dealer")
@@ -593,12 +602,12 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 					distance := CalculateDistance3D(victim.Position, attacker.Position)
 
 					// Only consider enemies within reasonable range
-					// Close range (<800): Very likely
-					// Mid range (800-1500): Likely
-					// Far range (>1500): Only if sniper rifle
-					maxRange := 1500.0
+					// Close range: Very likely
+					// Mid range: Likely
+					// Far range: Only if sniper rifle
+					maxRange := pa.Settings.MaxDamageDistNormal
 					if isSniperRifle(attacker.ActiveWeapon) {
-						maxRange = 3000.0 // Snipers can damage from far away
+						maxRange = pa.Settings.MaxDamageDistSniper // Snipers can damage from far away
 					}
 
 					if distance <= maxRange && distance < nearestDistance {
@@ -612,12 +621,10 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 					LogInfo("🎯 DAMAGE DEALT: %s likely hit %s (-%d HP, distance: %.0f)",
 						nearestAttacker.Name, victim.Name, healthLost, nearestDistance)
 
-					// Increment total damage detections counter
-					pa.TotalDamageDetections++
-
 					// Give damage dealer temporary bonus
-					pa.damageDealtBonus[nearestAttacker.SteamID] = 40.0
+					pa.damageDealtBonus[nearestAttacker.SteamID] = pa.Settings.DamageDealtBonus
 					pa.damageDealtTime[nearestAttacker.SteamID] = time.Now()
+					pa.TotalDamageDetections++ // Increment stats counter
 					damageDealtDetected = true
 					damageDealerID = nearestAttacker.SteamID
 				}
@@ -861,7 +868,7 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 	}
 
 	// Find encounters
-	encounters := PredictEncounters(players)
+	encounters := pa.PredictEncounters(players)
 	LogVerbose("[ANALYZER] Detected %d potential encounters", len(encounters))
 
 	if len(encounters) > 0 {
@@ -1045,12 +1052,12 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			}
 
 			// Bonus for sniper weapons (AWP > Scout)
-			p1Score += getSniperWeaponBonus(encounter.Player1.ActiveWeapon)
-			p2Score += getSniperWeaponBonus(encounter.Player2.ActiveWeapon)
+			p1Score += pa.getSniperWeaponBonus(encounter.Player1.ActiveWeapon)
+			p2Score += pa.getSniperWeaponBonus(encounter.Player2.ActiveWeapon)
 
 			// Bonus for rifles (AK-47 > M4s)
-			p1Score += getRifleWeaponBonus(encounter.Player1.ActiveWeapon)
-			p2Score += getRifleWeaponBonus(encounter.Player2.ActiveWeapon)
+			p1Score += pa.getRifleWeaponBonus(encounter.Player1.ActiveWeapon)
+			p2Score += pa.getRifleWeaponBonus(encounter.Player2.ActiveWeapon)
 
 			if p1Score > p2Score {
 				bestPlayerID = encounter.Player1.SteamID

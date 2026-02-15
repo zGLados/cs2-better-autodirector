@@ -1,31 +1,73 @@
 # Building Instructions
 
-## How to Build
+## How to Build (Wails GUI Version)
 
 ### Requirements
 
 Before building, make sure you have installed:
 
-1. **Go 1.21 or higher**: https://go.dev/dl/
-2. **GCC Compiler (TDM-GCC recommended)**: https://jmeubank.github.io/tdm-gcc/download/
+1. **Go 1.22 or higher**: https://go.dev/dl/
+2. **Node.js LTS (for frontend)**: https://nodejs.org/
+3. **Wails CLI v2.11+**:
+   ```powershell
+   go install github.com/wailsapp/wails/v2/cmd/wails@latest
+   ```
 
 After installation, restart your terminal/PowerShell.
 
+**Optional (but recommended):**
+- **UPX** (for compression): https://upx.github.io/
+- **NSIS** (for installer): https://nsis.sourceforge.io/
+
 ### Build the Application
 
+**Method 1: Using Wails (Recommended)**
+
 ```powershell
-cd scripts
-.\build.ps1
+cd cs2-autodirector-gui
+wails build
 ```
 
-Or double-click `scripts\build.bat`
+The executable will be created in `cs2-autodirector-gui/build/bin/cs2-better-autodirector.exe`
 
-This will:
-- ✅ Check if Go and GCC are installed
-- ✅ Download Go dependencies
-- ✅ Compile `cs2-better-autodirector.exe`
+**Method 2: Skip Frontend Bindings (Faster)**
 
-The executable will be created in the root directory.
+```powershell
+cd cs2-autodirector-gui
+wails build -skipbindings
+```
+
+**Method 3: Development Mode (with hot-reload)**
+
+```powershell
+cd cs2-autodirector-gui
+wails dev
+```
+
+This opens the app in development mode with automatic reload on code changes.
+
+### Build Output
+
+The compiled executable:
+- **Location**: `cs2-autodirector-gui/build/bin/cs2-better-autodirector.exe`
+- **Size**: ~12 MB (includes embedded frontend)
+- **Runs in**: 
+  - GUI mode (default): Opens dashboard window
+  - CLI mode: `cs2-better-autodirector.exe -nogui`
+
+### Verify Installation
+
+Check if all requirements are installed:
+
+```powershell
+wails doctor
+```
+
+This shows:
+- ✅ Go version
+- ✅ Node.js version
+- ✅ WebView2 status
+- ⚠️ Optional dependencies (UPX, NSIS)
 
 ---
 

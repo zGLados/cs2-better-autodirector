@@ -1,15 +1,16 @@
-# Better Auto Observer - Setup Script
-# This script checks requirements and builds the application
+# CS2 Better Auto Director - Setup Script (GUI Version)
+# This script checks requirements and builds the Wails GUI application
 
 $ErrorActionPreference = "Stop"
 
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host " Better Auto Observer - Setup Script" -ForegroundColor Cyan
+Write-Host " CS2 Better Auto Director - Setup Script" -ForegroundColor Cyan
+Write-Host " Version 3.0 - GUI Edition" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "This script will:" -ForegroundColor White
-Write-Host " - Check if Go and GCC are installed" -ForegroundColor White
-Write-Host " - Build better-autoobserver.exe" -ForegroundColor White
+Write-Host " - Check if Go, Node.js, and Wails are installed" -ForegroundColor White
+Write-Host " - Build cs2-better-autodirector.exe (with GUI)" -ForegroundColor White
 Write-Host " - Copy GSI config to CS folder (if found)" -ForegroundColor White
 Write-Host ""
 Write-Host "Press any key to continue or Ctrl+C to cancel..." -ForegroundColor Yellow
@@ -17,17 +18,14 @@ $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 Write-Host ""
 
 # Check if Go is installed
-Write-Host "[1/4] Checking Go installation..." -ForegroundColor Green
+Write-Host "[1/5] Checking Go installation..." -ForegroundColor Green
 $goInstalled = Get-Command go -ErrorAction SilentlyContinue
 
 if (-not $goInstalled) {
     Write-Host ""
     Write-Host "ERROR: Go is not installed!" -ForegroundColor Red
     Write-Host ""
-    Write-Host "Please install the following requirements:" -ForegroundColor Yellow
-    Write-Host "  1. Go 1.21 or higher: https://go.dev/dl/" -ForegroundColor White
-    Write-Host "  2. GCC Compiler (TDM-GCC): https://jmeubank.github.io/tdm-gcc/download/" -ForegroundColor White
-    Write-Host ""
+    Write-Host "Please install Go 1.21 or higher from: https://go.dev/dl/" -ForegroundColor Yellow
     Write-Host "After installation, run this script again." -ForegroundColor Yellow
     Write-Host ""
     Read-Host "Press Enter to exit"
@@ -38,19 +36,20 @@ $goVer = go version
 Write-Host "Go is already installed: $goVer" -ForegroundColor Green
 Write-Host ""
 
-# Check if GCC is installed
-Write-Host "[2/4] Checking GCC installation..." -ForegroundColor Green
-$gccInstalled = Get-Command gcc -ErrorAction SilentlyContinue
+# Check if Node.js is installed
+Write-Host "[2/5] Checking Node.js installation..." -ForegroundColor Green
+$nodeInstalled = Get-Command node -ErrorAction SilentlyContinue
 
-if (-not $gccInstalled) {
+if (-not $nodeInstalled) {
     Write-Host ""
-    Write-Host "ERROR: GCC not found!" -ForegroundColor Red
+    Write-Host "ERROR: Node.js is not installed!" -ForegroundColor Red
     Write-Host ""
-    Write-Host "robotgo requires a C compiler to build." -ForegroundColor Yellow
+    Write-Host "Wails requires Node.js for frontend build." -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "Please install one of the following:" -ForegroundColor White
-    Write-Host "  1. TDM-GCC (recommended): https://jmeubank.github.io/tdm-gcc/download/" -ForegroundColor White
-    Write-Host "  2. MinGW-w64: https://www.mingw-w64.org/" -ForegroundColor White
+    Write-Host "Install with:" -ForegroundColor White
+    Write-Host "  winget install OpenJS.NodeJS.LTS" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Or download from: https://nodejs.org/" -ForegroundColor White
     Write-Host ""
     Write-Host "After installation, run this script again." -ForegroundColor Yellow
     Write-Host ""
@@ -58,34 +57,82 @@ if (-not $gccInstalled) {
     exit 1
 }
 
-$gccVer = gcc --version | Select-Object -First 1
-Write-Host "GCC is already installed: $gccVer" -ForegroundColor Green
+$nodeVer = node --version
+$npmVer = npm --version
+Write-Host "Node.js is already installed: $nodeVer (npm $npmVer)" -ForegroundColor Green
+Write-Host ""
+
+# Check if Wails CLI is installed
+Write-Host "[3/5] Checking Wails CLI installation..." -ForegroundColor Green
+$wailsInstalled = Get-Command wails -ErrorAction SilentlyContinue
+
+if (-not $wailsInstalled) {
+    Write-Host ""
+    Write-Host "Wails CLI not found. Installing..." -ForegroundColor Yellow
+    try {
+        go install github.com/wailsapp/wails/v2/cmd/wails@latest
+        Write-Host "Wails CLI installed successfully!" -ForegroundColor Green
+        Write-Host ""
+        Write-Host "IMPORTANT: Please RESTART your terminal and run this script again." -ForegroundColor Cyan
+        Write-Host "The Wails CLI was installed to your Go bin directory." -ForegroundColor White
+        Write-Host ""
+        Read-Host "Press Enter to exit"
+        exit 0
+    } catch {
+        Write-Host "ERROR: Failed to install Wails CLI" -ForegroundColor Red
+        Write-Host $_.Exception.Message -ForegroundColor Red
+        Read-Host "Press Enter to exit"
+        exit 1
+    }
+}
+
+$wailsVer = wails version
+Write-Host "Wails is already installed:" -ForegroundColor Green
+Write-Host $wailsVer -ForegroundColor White
 Write-Host ""
 
 # Build application
-Write-Host "[3/4] Building better-autoobserver.exe..." -ForegroundColor Green
+Write-Host "[4/5] Building cs2-better-autodirector.exe..." -ForegroundColor Green
 Write-Host ""
 
-Write-Host "Downloading Go dependencies..."
 try {
-    # Go to root directory
+    # Navigate to Wails project directory
     $rootDir = Split-Path -Parent $PSScriptRoot
-    Set-Location $rootDir
+    $wailsDir = Join-Path $rootDir "cs2-autodirector-gui"
     
-    go mod tidy
-    if ($LASTEXITCODE -ne 0) { throw "go mod tidy failed" }
+    if (-not (Test-Path $wailsDir)) {
+        throw "Wails project directory not found: $wailsDir"
+    }
     
-    Write-Host "Compiling executable..."
-    go build -ldflags="-s -w" -o better-autoobserver.exe
-    if ($LASTEXITCODE -ne 0) { throw "go build failed" }
+    Set-Location $wailsDir
     
-    Write-Host "Build successful!" -ForegroundColor Green
+    Write-Host "Building with Wails..." -ForegroundColor Yellow
+    Write-Host "This may take a few minutes..." -ForegroundColor Yellow
+    Write-Host ""
+    
+    wails build
+    if ($LASTEXITCODE -ne 0) { throw "wails build failed" }
+    
+    # Copy executable to root directory
+    $builtExe = Join-Path $wailsDir "build\bin\cs2-better-autodirector.exe"
+    $targetExe = Join-Path $rootDir "cs2-better-autodirector.exe"
+    
+    if (Test-Path $builtExe) {
+        Copy-Item $builtExe $targetExe -Force
+        Write-Host "Build successful!" -ForegroundColor Green
+        Write-Host "Created: cs2-better-autodirector.exe" -ForegroundColor Green
+    } else {
+        throw "Executable not found at expected location: $builtExe"
+    }
+    
 } catch {
+    Write-Host ""
     Write-Host "ERROR: Build failed" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
     Write-Host ""
     Write-Host "Possible solutions:" -ForegroundColor Yellow
-    Write-Host " 1. Make sure Go and GCC are properly installed" -ForegroundColor White
-    Write-Host " 2. Restart your computer and try again" -ForegroundColor White
+    Write-Host " 1. Make sure Go, Node.js, and Wails are properly installed" -ForegroundColor White
+    Write-Host " 2. Run 'wails doctor' to check environment" -ForegroundColor White
     Write-Host " 3. Check the error message above for details" -ForegroundColor White
     Read-Host "Press Enter to exit"
     exit 1
@@ -93,8 +140,11 @@ try {
 Write-Host ""
 
 # Copy GSI config
-Write-Host "[4/4] Setting up Counter-Strike integration..." -ForegroundColor Green
+Write-Host "[5/5] Setting up Counter-Strike integration..." -ForegroundColor Green
 Write-Host ""
+
+# Go back to root directory for config copy
+Set-Location $rootDir
 
 # Find CS config folder
 $csPaths = @(
@@ -158,17 +208,25 @@ Write-Host " INSTALLATION COMPLETE!" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
 
-if (Test-Path "better-autoobserver.exe") {
-    $fileSize = (Get-Item "better-autoobserver.exe").Length
+if (Test-Path "cs2-better-autodirector.exe") {
+    $fileSize = (Get-Item "cs2-better-autodirector.exe").Length
     $fileSizeMB = [math]::Round($fileSize / 1MB, 2)
-    Write-Host "Created: better-autoobserver.exe ($fileSizeMB MB)" -ForegroundColor Green
+    Write-Host "Created: cs2-better-autodirector.exe ($fileSizeMB MB)" -ForegroundColor Green
 }
 
 Write-Host ""
-Write-Host "To start the Auto Observer:" -ForegroundColor White
+Write-Host "To start the Auto Director:" -ForegroundColor White
+Write-Host ""
+Write-Host "GUI Mode (with dashboard):" -ForegroundColor Cyan
+Write-Host "  cs2-better-autodirector.exe" -ForegroundColor White
+Write-Host ""
+Write-Host "CLI Mode (terminal only):" -ForegroundColor Cyan
+Write-Host "  cs2-better-autodirector.exe -nogui" -ForegroundColor White
+Write-Host ""
+Write-Host "Steps:" -ForegroundColor Yellow
 Write-Host "  1. Start Counter-Strike"
-Write-Host "  2. Go into spectator mode"
-Write-Host "  3. Run: better-autoobserver.exe"
+Write-Host "  2. Go into spectator mode (GOTV/Demo)"
+Write-Host "  3. Run the executable (GUI or CLI mode)"
 Write-Host ""
 
 if (-not $csConfigPath) {

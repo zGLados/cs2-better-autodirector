@@ -1,13 +1,11 @@
 @echo off
 echo ============================================
-echo Better Auto Observer - Quick Run
+echo CS2 Better Auto Director - Quick Run (GUI)
 echo ============================================
 echo.
-echo Starting without building exe...
-echo Add -v for verbose output: run.bat -v
+echo Starting in development mode (hot reload)...
 echo Press Ctrl+C to stop
 echo.
-set PATH=%PATH%;C:\TDM-GCC-64\bin
-cd /d "%~dp0\.."
-go run . %*
+cd /d "%~dp0\..\cs2-autodirector-gui"
+wails dev
 pause

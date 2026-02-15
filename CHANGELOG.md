@@ -1,6 +1,49 @@
 # CS2 Better Auto Director - Changelog
 
-## Version 2.0.0 (Current)
+## Version 3.0.0 (Current) - GUI Edition
+
+### 🎨 Major UI Update - Wails Dashboard
+
+**Complete GUI Rewrite:**
+- **Modern Dashboard Interface**: Built with Wails framework (native Windows app)
+- **Live Status Widget**: Current player, uptime, total switches, alive players count
+- **Real-time Player Table**: HP, Armor, K/D, Weapons, Money - updates every 500ms
+- **Top Encounters Rankings**: Shows top 5 encounters with distance and priority scores
+- **Live Event Log Stream**: Scrolling log of all switches, kills, detections
+- **Statistics Dashboard**: Sniper kills, upset victories, damage detections, switches/min
+- **Dark Gaming Theme**: Professional CS2-inspired design with gradients and animations
+- **Real-time Updates**: WebSocket-like events using Wails Events system
+
+**Dual-Mode Operation:**
+```bash
+cs2-better-autodirector.exe           # Starts GUI (default)
+cs2-better-autodirector.exe -nogui    # Starts CLI mode
+cs2-better-autodirector.exe -nogui -v # CLI with verbose logging
+```
+
+**Technical Stack:**
+- Backend: Go with Wails v2.11.0
+- Frontend: Vanilla JS + Vite + Custom CSS
+- Size: ~12 MB (includes embedded frontend)
+- No dependencies: Fully standalone .exe
+
+**New Features:**
+- ✅ Start/Stop controls in GUI
+- ✅ Live player monitoring with team colors (CT/T)
+- ✅ Encounter priority visualization
+- ✅ Event timeline with timestamps
+- ✅ Statistics tracking and display
+- ✅ One executable for both GUI and CLI modes
+
+**Migration:**
+- Old CLI functionality preserved with `-nogui` flag
+- Same configuration files (gamestate_integration_autodirector.cfg)
+- Same port (3000) and GSI integration
+- All existing features work in both modes
+
+---
+
+## Version 2.0.0
 
 ### 🎯 Major Features
 
