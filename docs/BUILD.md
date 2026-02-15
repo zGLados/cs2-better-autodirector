@@ -71,41 +71,69 @@ This shows:
 
 ---
 
-## Advanced: Creating an Installer with Inno Setup
+## Building a Windows Installer
 
-For professional distribution, you can create a Windows installer.
+For professional distribution, you can create a complete Windows installer that:
+- ✅ Installs to `C:\Program Files\CS2BetterAutoDirector`
+- ✅ Creates Start Menu shortcuts
+- ✅ Optionally creates Desktop icon
+- ✅ Automatically copies GSI config to CS2 folder (if detected)
+- ✅ Includes professional uninstaller
 
 ### Requirements:
-1. Install [Inno Setup](https://jrsoftware.org/isdl.php)
-2. Build the .exe first with `scripts\build.bat`
+1. **Inno Setup 6**: Download from [https://jrsoftware.org/isdl.php](https://jrsoftware.org/isdl.php)
+2. Install Inno Setup (default location recommended)
 
-### Create Installer:
+### Create Installer (Automated):
 
-1. Open **Inno Setup Compiler**
-2. Open the file `scripts\installer.iss`
-3. Click **Build → Compile**
+**Option 1: Using PowerShell Script (Recommended)**
+```powershell
+.\scripts\build-installer.ps1
+```
 
-This creates `BetterAutoObserver-Setup.exe` in the Output folder.
+**Option 2: Using Batch File**
+```cmd
+.\scripts\build-installer.bat
+```
 
-### The installer includes:
-- ✅ Installs better-autoobserver.exe
-- ✅ Automatically copies GSI config to CS folder
-- ✅ Creates desktop shortcuts
-- ✅ Adds to Start Menu
-- ✅ Professional uninstaller
+This will:
+1. Check if Inno Setup is installed
+2. Build the GUI application with Wails
+3. Compile the installer with Inno Setup
+
+The installer will be created as: `build\CS2BetterAutoDirector-Setup.exe`
+
+### Create Installer (Manual):
+
+1. Build the GUI first:
+   ```powershell
+   cd gui
+   wails build -skipbindings
+   ```
+
+2. Open **Inno Setup Compiler**
+3. Open the file `scripts\installer.iss`
+4. Click **Build → Compile**
+
+### Installer Features:
+
+The created installer (`CS2BetterAutoDirector-Setup.exe`):
+- **Size**: ~15-20 MB (compressed)
+- **Installs to**: `C:\Program Files\CS2BetterAutoDirector\`
+- **Shortcuts**: Start Menu + optional Desktop
+- **Smart GSI Config**: Automatically detects Steam installation and copies GSI config
+- **Clean Uninstall**: Professional uninstaller included
 
 ---
 
-## Comparison:
+## Distribution Comparison:
 
-| Feature | build.ps1 | Inno Setup Installer |
-|---------|-----------|----------------------|
-| Quick build | ✅ Yes | ❌ No |
-| For development | ✅ Perfect | ❌ Overkill |
-| For distribution | ✅ Good | ✅ Professional |
-| Uninstaller | ❌ No | ✅ Yes |
-| Size | Small | Medium (~10-20 MB) |
+| Method | Use Case | Pros | Cons |
+|--------|----------|------|------|
+| **Portable .exe** | Quick testing / Development | Fast, simple | Manual config copy |
+| **Installer .exe** | Distribution to users | Professional, auto-config | Requires Inno Setup |
+| **Shortcut** | Local development | Convenient access | Not for distribution |
 
 **Recommendation:**
-- **Development:** Use `build.ps1` 
-- **Distribution to users:** Use Inno Setup Installer
+- **For yourself:** Use shortcut in root folder (`cs2-better-autodirector.lnk`)
+- **For others:** Build and distribute the installer (`CS2BetterAutoDirector-Setup.exe`)
