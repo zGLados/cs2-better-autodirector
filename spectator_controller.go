@@ -63,9 +63,18 @@ func (sc *SpectatorController) UpdatePlayerSlots(gameState map[string]interface{
 
 		weapons, _ := playerMap["weapons"].(map[string]interface{})
 		equipValue := 0
+		activeWeapon := ""
 		for _, weapon := range weapons {
 			weaponMap, _ := weapon.(map[string]interface{})
 			weaponType := getStringValue(weaponMap, "type")
+			weaponName := getStringValue(weaponMap, "name")
+			weaponState := getStringValue(weaponMap, "state")
+
+			// Track active weapon
+			if weaponState == "active" {
+				activeWeapon = weaponName
+			}
+
 			if weaponType != "Knife" && weaponType != "C4" && weaponType != "Grenade" {
 				equipValue += getIntValue(weaponMap, "value")
 			}
@@ -78,6 +87,7 @@ func (sc *SpectatorController) UpdatePlayerSlots(gameState map[string]interface{
 			Health:         health,
 			Kills:          kills,
 			EquipmentValue: equipValue,
+			ActiveWeapon:   activeWeapon,
 		}
 
 		// Check if GSI provides observer_slot

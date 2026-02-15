@@ -21,6 +21,7 @@ type PlayerInfo struct {
 	Deaths         int
 	EquipmentValue int
 	HasDefuser     bool
+	ActiveWeapon   string // e.g. "weapon_awp", "weapon_ak47"
 }
 
 // Position represents a 3D position
@@ -28,6 +29,23 @@ type Position struct {
 	X float64
 	Y float64
 	Z float64
+}
+
+// isLongRangeWeapon checks if a weapon is effective at long range
+func isLongRangeWeapon(weapon string) bool {
+	longRangeWeapons := []string{
+		"weapon_awp",    // AWP Sniper
+		"weapon_ssg08",  // Scout
+		"weapon_aug",    // AUG (scoped rifle)
+		"weapon_sg556",  // SG553/SG556 (scoped rifle)
+		"weapon_deagle", // Desert Eagle (accurate at range)
+	}
+	for _, w := range longRangeWeapons {
+		if weapon == w {
+			return true
+		}
+	}
+	return false
 }
 
 // Encounter represents a potential encounter
@@ -216,11 +234,17 @@ func PredictEncounters(players []PlayerInfo) []Encounter {
 			var distance float64
 			if hasPositionData {
 				distance = CalculateDistance2D(p1.Position, p2.Position)
-				// Focus on close to medium range encounters (where kills happen)
-				// 0-500: Very close (grenades, shotguns)
-				// 500-1500: Medium range (rifles)
-				// 1500-2000: Long range (AWP, etc.)
-				if distance >= 2000 {
+
+				// Determine max encounter distance based on weapons
+				// Normal: 1500 units (rifles)
+				// Long-range (AWP/SSG/AUG/SG/Deagle): 2500 units
+				maxDistance := 1500.0
+				hasLongRange := isLongRangeWeapon(p1.ActiveWeapon) || isLongRangeWeapon(p2.ActiveWeapon)
+				if hasLongRange {
+					maxDistance = 2500.0
+				}
+
+				if distance >= maxDistance {
 					continue
 				}
 			} else {
@@ -250,6 +274,12 @@ func PredictEncounters(players []PlayerInfo) []Encounter {
 func CalculateEncounterPriority(p1, p2 PlayerInfo, distance float64, hasPositionData bool) float64 {
 	priority := 0.0
 
+	// Check if long-range weapons are involved
+	p1HasLongRange := isLongRangeWeapon(p1.ActiveWeapon)
+	p2HasLongRange := isLongRangeWeapon(p2.ActiveWeapon)
+	bothHaveLongRange := p1HasLongRange && p2HasLongRange
+	eitherHasLongRange := p1HasLongRange || p2HasLongRange
+
 	// 1. Distance-based priority (HEAVILY weighted - this is where action happens!)
 	if hasPositionData {
 		if distance < 300 {
@@ -260,8 +290,18 @@ func CalculateEncounterPriority(p1, p2 PlayerInfo, distance float64, hasPosition
 			priority += 80 // Medium-close range
 		} else if distance < 1500 {
 			priority += 50 // Medium range
+		} else if distance < 2500 {
+			// Long range (1500-2500) - typically only sniper fights
+			if eitherHasLongRange {
+				priority += 80 // Good priority for sniper duels
+				if bothHaveLongRange {
+					priority += 50 // Extra bonus for sniper vs sniper
+				}
+			} else {
+				priority += 20 // Low priority if no long-range weapons
+			}
 		} else {
-			priority += 20 // Long range - less likely to result in kills
+			priority += 10 // Very long range - unlikely to result in action
 		}
 	} else {
 		// Without position data, give base priority for any matchup
@@ -489,14 +529,15 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 	if len(encounters) > 0 {
 		// Apply bonus to encounters involving the currently spectated player
 		// BUT only if:
-		// 1. The encounter has decent priority (>80) to begin with
-		// 2. We haven't been stuck on this player too long (>15s)
+		// 1. The encounter has decent priority (>140) to begin with
+		// 2. We haven't been stuck on this player too long
 		//
-		// EXCEPTIONS for sticky time limit:
-		// - Less than 4 players alive (clutch situation) → unlimited sticky time
-		// - Current player in active encounter (Priority >80) → unlimited sticky time
+		// TIME LIMITS:
+		// - Normal: 15s limit
+		// - Clutch (<4 players) or Active Encounter (Priority >140): 25s limit
 		timeOnCurrentPlayer := time.Since(pa.currentPlayerSwitchTime).Seconds()
 		baseIsStuckTooLong := timeOnCurrentPlayer > pa.maxStickyTime.Seconds()
+		const maxExtendedStickyTime = 25.0 // Absolute maximum for any situation
 
 		// Exception 1: Clutch situation (few players alive)
 		isClutchSituation := len(players) <= 4
@@ -512,23 +553,29 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 
 					// Check if sticky time limit applies
 					isStuckTooLong := baseIsStuckTooLong
+					absoluteMaxExceeded := timeOnCurrentPlayer > maxExtendedStickyTime
 
-					// Exception 1: Clutch situation - no time limit
-					if isClutchSituation {
+					// Exception 1: Clutch situation - extended time limit (25s instead of 15s)
+					if isClutchSituation && !absoluteMaxExceeded {
 						isStuckTooLong = false
 					}
 
-					// Exception 2: Active encounter (Priority >80) - current player is in action
-					if originalPriority > 80.0 {
+					// Exception 2: Active encounter (Priority >140) - extended time limit (25s instead of 15s)
+					if originalPriority > 140.0 && !absoluteMaxExceeded {
 						if baseIsStuckTooLong {
-							LogVerbose("[ANALYZER] 🔥 Active encounter detected - sticky time limit disabled for this fight")
+							LogVerbose("[ANALYZER] 🔥 Active encounter detected - extended sticky time limit (25s)")
 						}
 						isStuckTooLong = false
 					}
 
-					// Only give bonus if base priority is good enough (>80 = close encounter)
+					// Check if absolute maximum is exceeded
+					if absoluteMaxExceeded {
+						isStuckTooLong = true
+					}
+
+					// Only give bonus if base priority is good enough (>140 = close encounter)
 					// AND we haven't been on this player too long (unless exceptions apply)
-					if originalPriority > 80.0 && !isStuckTooLong {
+					if originalPriority > 140.0 && !isStuckTooLong {
 						// In clutch situations, give smaller bonus to encourage more switching
 						bonusAmount := 30.0
 						if isClutchSituation {
@@ -545,10 +592,14 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 								return ""
 							}())
 					} else if isStuckTooLong {
+						timeLimit := pa.maxStickyTime.Seconds()
+						if absoluteMaxExceeded {
+							timeLimit = maxExtendedStickyTime
+						}
 						LogVerbose("[ANALYZER] ⏱️  Sticky time exceeded (%.1fs > %.0fs) - no bonus applied",
-							timeOnCurrentPlayer, pa.maxStickyTime.Seconds())
+							timeOnCurrentPlayer, timeLimit)
 					} else {
-						LogVerbose("[ANALYZER] 📉 Priority too low (%.1f < 80) - no bonus applied", originalPriority)
+						LogVerbose("[ANALYZER] 📉 Priority too low (%.1f < 140) - no bonus applied", originalPriority)
 					}
 				}
 			}
