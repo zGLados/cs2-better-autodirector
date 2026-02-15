@@ -1,0 +1,48 @@
+# Binaries
+*.exe
+better-autoobserver.exe
+setup.exe
+
+# Go build artifacts
+*.o
+*.a
+*.so
+*.dll
+
+# Go test files
+*.test
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.log
+*.bak
+
+# Log directory
+logs/
+
+# Installer outputs
+Output/
+*.msi
+
+# Downloads
+*.zip
+*.tar.gz
