@@ -505,26 +505,9 @@ The workflow is already configured in `.github/workflows/build-installer.yml`. N
 
 ### Build Methods
 
-The GitHub Actions workflow supports multiple triggers for different use cases:
+The GitHub Actions workflow is optimized to save resources and only builds on official releases:
 
-#### Method 1: Automatic Build on Every Push (Development)
-
-```bash
-# Simply push to dev branch
-git add .
-git commit -m "Update feature X"
-git push origin dev
-```
-
-**What happens:**
-1. GitHub Actions automatically starts building (~5-7 minutes)
-2. Installer is uploaded as **Artifact** (downloadable for 90 days)
-3. **No GitHub Release created** (only for testing)
-4. Download from: Actions → Workflow run → Artifacts
-
-**Use case:** Daily development, testing changes before release.
-
-#### Method 2: Automatic Build on Release Tag (Official Releases)
+#### Method 1: Automatic Build on Release Tag (Official Releases)
 
 ```bash
 # 1. Update version in CHANGELOG.md, README.md, etc.
@@ -545,14 +528,7 @@ git push origin v3.1.0
 
 **Use case:** Official releases for users to download.
 
-#### Method 3: Automatic Build on Pull Requests
-
-When you create a Pull Request to `dev`:
-- Installer is automatically built to verify PR doesn't break the build
-- Artifact is created (no release)
-- Perfect for code review workflow
-
-#### Method 4: Manual Build (Any Branch/Commit)
+#### Method 2: Manual Build (GitHub UI)
 
 ```bash
 # 1. Go to: https://github.com/YOUR_USERNAME/cs2-better-autodirector/actions
@@ -562,26 +538,24 @@ When you create a Pull Request to `dev`:
 # 5. Download installer from "Artifacts" section
 ```
 
-**Use case:** Test builds from feature branches, one-off builds.
+**Use case:** Test builds from any branch without creating a release tag.
 
 ### Workflow Behavior Summary
 
 | Trigger | Builds? | Artifact? | GitHub Release? | Use Case |
 |---------|---------|-----------|-----------------|----------|
-| Push to `dev` | ✅ | ✅ 90 days | ❌ | Daily development |
-| Pull Request | ✅ | ✅ 90 days | ❌ | Code review |
+| Push to `dev` | ❌ | ❌ | ❌ | N/A (saves Actions minutes) |
+| Pull Request | ❌ | ❌ | ❌ | N/A (build locally for testing) |
 | Tag `v*.*.*` | ✅ | ✅ 90 days | ✅ Permanent | Official releases |
-| Manual trigger | ✅ | ✅ 90 days | ❌ | Testing |
+| Manual trigger | ✅ | ✅ 90 days | ❌ | Testing specific commits |
 
 ### Recommended Workflow for Development
 
 **Daily work:**
 ```bash
-# Make changes, commit, push → automatic build
-git add .
-git commit -m "Add feature X"
-git push origin dev
-# → Artifact available in Actions tab for testing
+# Make changes, test locally
+.\scripts\build-installer.bat
+# → Installer in build/ folder for local testing
 ```
 
 **Official release:**
@@ -670,14 +644,29 @@ Edit `.github/workflows/build-installer.yml` to:
     key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
 ```
 
-**Build on different triggers:**
+**Current configuration (release-only, saves Actions minutes):**
 ```yaml
 on:
   push:
-    branches: [ main ]  # Build on every push to main
-  pull_request:         # Build on pull requests
-  schedule:
-    - cron: '0 0 * * 0'  # Weekly build every Sunday
+    tags:
+      - 'v*.*.*'      # Build only on version tags
+  workflow_dispatch:  # Manual trigger
+```
+
+**Alternative: Build on every push (for active development):**
+```yaml
+on:
+  push:
+    branches: [ dev ]  # Build on every push to dev
+    paths:
+      - 'gui/**'         # Only when code changes
+      - 'config/**'
+      - 'scripts/installer.iss'
+  pull_request:          # Build on pull requests
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
 ```
 
 **Slack/Discord notifications:**
