@@ -29,10 +29,7 @@ jobs:
         shell: powershell
       
       - name: Install Inno Setup
-        run: |
-          Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile "innosetup.exe"
-          Start-Process -FilePath "innosetup.exe" -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
-          Write-Host "Inno Setup installed"
+        run: choco install innosetup -y
         shell: powershell
       
       - name: Build GUI Application

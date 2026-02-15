@@ -20,6 +20,12 @@
 - ✅ **GitHub Repository Link**: Quick access to project repository from Start Menu
 - ✅ **Clean Uninstallation**: Removes all files including logs folder
 - ✅ **Multi-Language Support**: English and German interface
+- ✅ **Command-Line Installation**: Full silent/unattended installation support
+  - Silent install: `/VERYSILENT`
+  - Custom directory: `/DIR="path"`
+  - Task selection: `/TASKS="desktopicon,copygsiconfig"`
+  - System-wide: `/ALLUSERS` or User-only: `/CURRENTUSER`
+  - Deployment scripts for PowerShell and Batch included
 
 **Installation Modes:**
 1. **Install for me only** (Default):

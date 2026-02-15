@@ -193,6 +193,20 @@ Download and run `CS2BetterAutoDirector-Setup.exe` for a professional installati
    The installer will be created in the `build/` folder.
 3. **Automated GitHub Actions**: Push a version tag to auto-build (see [docs/BUILD.md](docs/BUILD.md#automated-builds-with-github-actions))
 
+**Silent/Automated Installation:**
+```cmd
+# Silent installation for current user
+CS2BetterAutoDirector-Setup.exe /VERYSILENT /CURRENTUSER
+
+# Silent installation for all users (requires admin)
+CS2BetterAutoDirector-Setup.exe /VERYSILENT /ALLUSERS
+
+# Custom installation directory
+CS2BetterAutoDirector-Setup.exe /VERYSILENT /DIR="D:\Games\CS2AutoDirector"
+```
+
+For complete command-line options and deployment scripts, see [docs/BUILD.md](docs/BUILD.md#command-line-installation-silentunattended).
+
 ### Method 2: Portable EXE
 
 Download `cs2-better-autodirector.exe` and run it directly:

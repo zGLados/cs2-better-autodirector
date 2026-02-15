@@ -188,6 +188,180 @@ The created installer:
 
 ---
 
+## Command-Line Installation (Silent/Unattended)
+
+The installer supports full command-line installation for automation, deployment scripts, or enterprise environments.
+
+### Silent Installation
+
+**Basic silent install (user-only, default settings):**
+```cmd
+CS2BetterAutoDirector-Setup.exe /VERYSILENT
+```
+
+**Silent install with log file:**
+```cmd
+CS2BetterAutoDirector-Setup.exe /VERYSILENT /LOG="install.log"
+```
+
+**System-wide installation (requires admin):**
+```cmd
+CS2BetterAutoDirector-Setup.exe /VERYSILENT /ALLUSERS
+```
+
+**Custom installation directory:**
+```cmd
+CS2BetterAutoDirector-Setup.exe /VERYSILENT /DIR="D:\Games\CS2AutoDirector"
+```
+
+### Available Command-Line Parameters
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `/VERYSILENT` | Completely silent (no UI) | `/VERYSILENT` |
+| `/SILENT` | Silent with progress bar | `/SILENT` |
+| `/SUPPRESSMSGBOXES` | No message boxes | `/SUPPRESSMSGBOXES` |
+| `/LOG="file"` | Create installation log | `/LOG="C:\install.log"` |
+| `/DIR="path"` | Installation directory | `/DIR="C:\MyApps\AutoDirector"` |
+| `/GROUP="name"` | Start Menu folder | `/GROUP="CS2 Tools"` |
+| `/NOICONS` | Don't create shortcuts | `/NOICONS` |
+| `/TASKS="task1,task2"` | Select tasks | `/TASKS="desktopicon,copygsiconfig"` |
+| `/ALLUSERS` | Install for all users (admin) | `/ALLUSERS` |
+| `/CURRENTUSER` | Install for current user only | `/CURRENTUSER` |
+| `/NORESTART` | Don't restart PC | `/NORESTART` |
+
+### Task Names
+
+Use with `/TASKS="task1,task2"`:
+- `desktopicon` - Create desktop shortcut
+- `copygsiconfig` - Copy GSI config to CS2 folder
+
+**Examples:**
+```cmd
+# Desktop icon + config copy
+CS2BetterAutoDirector-Setup.exe /VERYSILENT /TASKS="desktopicon,copygsiconfig"
+
+# No desktop icon, no config copy
+CS2BetterAutoDirector-Setup.exe /VERYSILENT /TASKS=""
+
+# Only config copy (no desktop icon)
+CS2BetterAutoDirector-Setup.exe /VERYSILENT /TASKS="copygsiconfig"
+```
+
+### Complete Examples
+
+**Enterprise deployment (silent, system-wide, custom path, with log):**
+```cmd
+CS2BetterAutoDirector-Setup.exe /VERYSILENT /ALLUSERS /DIR="C:\Program Files\CS2Tools\AutoDirector" /LOG="C:\Logs\autodirector-install.log" /SUPPRESSMSGBOXES
+```
+
+**User deployment (silent, default location, desktop icon, config copy):**
+```cmd
+CS2BetterAutoDirector-Setup.exe /VERYSILENT /CURRENTUSER /TASKS="desktopicon,copygsiconfig"
+```
+
+**Testing installation (progress bar visible, custom location):**
+```cmd
+CS2BetterAutoDirector-Setup.exe /SILENT /DIR="D:\Test\AutoDirector" /LOG="test-install.log"
+```
+
+### Silent Uninstallation
+
+**Uninstall silently:**
+```cmd
+# Find uninstaller in installation directory
+"C:\Program Files\CS2BetterAutoDirector\unins000.exe" /VERYSILENT
+```
+
+**Or via registry:**
+```powershell
+# Get uninstall command from registry
+$uninstall = Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" | Where-Object { $_.DisplayName -eq "CS2 Better Auto Director" }
+$uninstallString = $uninstall.UninstallString
+# Run silently
+Start-Process $uninstallString -ArgumentList "/VERYSILENT" -Wait
+```
+
+### Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Setup failed |
+| 2 | User cancelled |
+| 3 | Fatal error |
+
+### Deployment Scripts
+
+**PowerShell deployment script:**
+```powershell
+# Download and install
+$url = "https://github.com/zGLados/cs2-better-autodirector/releases/latest/download/CS2BetterAutoDirector-Setup.exe"
+$installer = "$env:TEMP\CS2AutoDirector-Setup.exe"
+
+# Download
+Invoke-WebRequest -Uri $url -OutFile $installer
+
+# Install silently for current user
+$process = Start-Process -FilePath $installer -ArgumentList "/VERYSILENT /CURRENTUSER /TASKS=copygsiconfig /LOG=`"$env:TEMP\install.log`"" -PassThru -Wait
+
+# Check exit code
+if ($process.ExitCode -eq 0) {
+    Write-Host "Installation successful!"
+} else {
+    Write-Host "Installation failed with exit code: $($process.ExitCode)"
+    Get-Content "$env:TEMP\install.log"
+}
+
+# Cleanup
+Remove-Item $installer
+```
+
+**Batch script for mass deployment:**
+```batch
+@echo off
+REM Download installer (use your actual URL)
+echo Downloading CS2 Better Auto Director...
+curl -L -o "%TEMP%\CS2AutoDirector-Setup.exe" "https://github.com/USER/REPO/releases/latest/download/CS2BetterAutoDirector-Setup.exe"
+
+REM Install silently
+echo Installing...
+"%TEMP%\CS2AutoDirector-Setup.exe" /VERYSILENT /CURRENTUSER /TASKS="copygsiconfig" /SUPPRESSMSGBOXES /NORESTART
+
+REM Wait for installation
+timeout /t 30 /nobreak
+
+REM Cleanup
+del "%TEMP%\CS2AutoDirector-Setup.exe"
+
+echo Installation complete!
+pause
+```
+
+### Checking Installation Status
+
+**PowerShell - Check if installed:**
+```powershell
+# Check via registry
+$installed = Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" | Where-Object { $_.DisplayName -eq "CS2 Better Auto Director" }
+if ($installed) {
+    Write-Host "Installed at: $($installed.InstallLocation)"
+    Write-Host "Version: $($installed.DisplayVersion)"
+} else {
+    Write-Host "Not installed"
+}
+
+# Or check if exe exists
+if (Test-Path "$env:LOCALAPPDATA\Programs\CS2BetterAutoDirector\cs2-better-autodirector.exe") {
+    Write-Host "Found user installation"
+}
+if (Test-Path "C:\Program Files\CS2BetterAutoDirector\cs2-better-autodirector.exe") {
+    Write-Host "Found system-wide installation"
+}
+```
+
+---
+
 ## Distribution Comparison:
 
 | Method | Size | Installation | Config Setup | Admin Rights | Best For |
@@ -368,7 +542,7 @@ The workflow does:
 1. ✅ Sets up Go 1.22
 2. ✅ Sets up Node.js 20
 3. ✅ Installs Wails CLI
-4. ✅ Installs Inno Setup 6
+4. ✅ Installs Inno Setup 6 (via Chocolatey - fast and reliable)
 5. ✅ Builds GUI: `wails build -skipbindings`
 6. ✅ Compiles installer: `ISCC.exe installer.iss`
 7. ✅ Uploads artifact (90 days retention)
@@ -386,8 +560,9 @@ The workflow does:
 - ✅ **Multiple platforms**: Can add Linux/macOS builds later
 
 **Build times:**
-- First run: ~8-12 minutes (installs dependencies)
-- Cached runs: ~5-7 minutes (with caching enabled)
+- First run: ~5-7 minutes (installs dependencies via Chocolatey)
+- Cached runs: ~3-5 minutes (with dependency caching enabled)
+- Inno Setup install: ~30 seconds (via Chocolatey package manager)
 
 ### Viewing Build Status
 
@@ -449,9 +624,15 @@ Add notification steps using GitHub Actions integrations.
 
 ### Troubleshooting GitHub Actions
 
+**Inno Setup installation takes too long (> 2 minutes):**
+- Current workflow uses Chocolatey (fast, ~30 seconds)
+- Old workflow used direct download which could hang
+- If it still hangs, check Chocolatey status: `choco --version`
+
 **Build fails at Inno Setup installation:**
-- Check if download URL is still valid in workflow file
-- Inno Setup might have changed their download link
+- Chocolatey should be pre-installed on GitHub Actions Windows runners
+- If missing, workflow will fail - this is a GitHub infrastructure issue
+- Fallback: Use direct download (see old workflow commits)
 
 **Build fails at Wails:**
 - Ensure all Go dependencies are committed (`go.mod`, `go.sum`)

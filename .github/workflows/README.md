@@ -27,7 +27,7 @@ This folder contains automated build workflows for GitHub Actions.
 1. ✅ Sets up Go 1.22
 2. ✅ Sets up Node.js 20
 3. ✅ Installs Wails CLI
-4. ✅ Installs Inno Setup 6
+4. ✅ Installs Inno Setup 6 (via Chocolatey - fast!)
 5. ✅ Builds GUI application (`wails build -skipbindings`)
 6. ✅ Compiles installer (`ISCC.exe installer.iss`)
 7. ✅ Uploads `CS2BetterAutoDirector-Setup.exe` as artifact
@@ -35,8 +35,9 @@ This folder contains automated build workflows for GitHub Actions.
 
 #### Build Time:
 
-- First run: ~8-12 minutes (installs all dependencies)
-- Cached runs: ~5-7 minutes
+- First run: ~5-7 minutes (installs all dependencies)
+- Cached runs: ~3-5 minutes (with dependency caching)
+- Inno Setup install: ~30-60 seconds (via Chocolatey)
 
 #### Artifacts:
 
