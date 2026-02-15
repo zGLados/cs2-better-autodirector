@@ -342,6 +342,107 @@ This typically means:
 
 ---
 
+## 🎯 Special Event Systems
+
+The system includes several advanced features that detect and react to special in-game events:
+
+### 1. **🎯 Sniper System**
+
+#### Sniper Duel Detection
+When two players with sniper rifles encounter each other:
+```
+Priority += 100 (Sniper vs Sniper bonus)
+
+If AWP involved:
+  Priority += 30 extra (AWP duel bonus)
+```
+
+**Why:** Sniper duels are high-stakes, one-shot-kill moments that viewers love to watch.
+
+#### Sniper Kill Tracking
+When a player gets a kill with a sniper rifle:
+```
+AWP Kill:   +200 bonus for 8 seconds
+Scout Kill: +150 bonus for 8 seconds
+```
+
+**Smart Immediate Switching (AWP kills only):**
+- ✅ **AWP kills:** Immediate switch to killer (unless currently watching another sniper)
+- ⚠️ **Scout kills:** Uses bonus system instead (no immediate switch to avoid excessive jumping)
+- ❌ **No switch if:** Current player has AWP/Sniper (don't interrupt sniper action)
+
+**Weapon Differentiation:**
+- AWP gets higher priority than Scout in all calculations
+- Player selection bonus: AWP +30, Scout +15
+
+### 2. **💥 Damage Detection System**
+
+Tracks health changes to detect damage dealers and switch to action:
+
+#### How It Works:
+1. **Health Tracking:** Monitors HP of all players every tick
+2. **Damage Detection:** Triggers when player loses >20 HP
+3. **Attacker Identification:**
+   - Finds nearest enemy with shooting weapon
+   - Range limits:
+     - Normal weapons: max 1500 units
+     - Sniper rifles: max 3000 units
+   - Excludes grenades, molotovs, knives
+
+#### Immediate Switching:
+```
+When damage detected:
+  → Immediate switch to damage dealer
+  → +40 bonus for 5 seconds
+```
+
+**Filtering:**
+- ✅ Guns, rifles, SMGs, pistols
+- ❌ Grenades, molotovs, incendiaries, knives, C4, tasers
+
+**Why:** Catching the moment someone lands shots creates dynamic, action-packed spectating.
+
+### 3. **🏆 Upset Victory System**
+
+Detects when an underdog wins a fight and prioritizes showing the victor:
+
+#### Detection:
+```
+If player NOT currently spectated wins an encounter:
+  → Upset victory!
+  → +100 bonus for 10 seconds
+  → Immediate switch to winner
+```
+
+**Requirements:**
+- Last encounter must have had 2 players
+- One player died (killed)
+- Winner is NOT the player we were watching
+
+**Why:** Viewers want to see the winner's perspective, especially if we missed their winning moment.
+
+### 4. **Priority Override Scenarios**
+
+These situations **bypass normal rate limiting** for immediate switches:
+
+1. **Player Death** ☠️
+   - Currently spectated player dies
+   - Switch immediately (0s delay)
+
+2. **Upset Victory** 🏆
+   - Underdog wins encounter
+   - Switch immediately to winner
+
+3. **AWP Kill** 🎯
+   - Player gets AWP kill
+   - Switch immediately (unless watching another sniper)
+
+4. **Damage Dealt** 💥
+   - Player lands 20+ damage
+   - Switch immediately to shooter
+
+---
+
 ## 🔄 Complete Decision Flow
 
 ```mermaid
@@ -470,6 +571,15 @@ Current values in the code:
 | `maxEncounterDistance` | 2000 units | Maximum distance for encounter detection |
 | `currentPlayerBonus` | +30 | Priority bonus for current player's encounters |
 | `currentPlayerBonusClutch` | +10 | Reduced bonus in clutch for more switching |
+| **Special Event Bonuses** | | |
+| `sniperDuelBonus` | +100 | Sniper vs Sniper encounter |
+| `awpDuelBonus` | +30 | Additional bonus when AWP involved |
+| `awpKillBonus` | +200 (8s) | AWP kill immediate priority |
+| `scoutKillBonus` | +150 (8s) | Scout kill priority |
+| `damageDealtBonus` | +40 (5s) | Landing 20+ HP damage |
+| `upsetVictoryBonus` | +100 (10s) | Underdog wins encounter |
+| `awpWeaponBonus` | +30 | Player selection bonus (AWP) |
+| `scoutWeaponBonus` | +15 | Player selection bonus (Scout) |
 
 ---
 
@@ -508,9 +618,15 @@ Potential enhancements to the priority system:
 
 - [ ] Detect bomb plant/defuse situations (+200 priority)
 - [ ] Detect flashbang/smoke usage (temporary +50 priority)
-- [ ] Track recent damage dealt (wounded players more likely to die)
 - [ ] Machine learning to predict kill probability from player movements
 - [ ] Custom priority profiles (aggressive vs conservative switching)
+- [ ] Grenade trajectory tracking for better grenade damage detection
+
+**Already Implemented ✅:**
+- [x] Track recent damage dealt (wounded players more likely to die) → **Damage Detection System**
+- [x] Sniper duel prioritization → **Sniper System**
+- [x] Upset victory detection → **Upset Victory System**
+- [x] Kill tracking and immediate switching → **Sniper Kill Tracking**
 
 ---
 

@@ -90,6 +90,21 @@ cs2-better-autodirector/
 - Defuser bonus for bomb situations
 - 👉 **[Full priority system documentation](docs/CAMERA_PRIORITY.md)**
 
+🎯 **Advanced Event Detection**
+- **Sniper System:**
+  - Sniper duel detection (+100 bonus, +30 for AWP duels)
+  - AWP kill tracking (+200 bonus, immediate switch)
+  - Scout kill tracking (+150 bonus)
+  - Smart switching (respects ongoing sniper action)
+- **Damage Detection:**
+  - Real-time HP tracking
+  - Identifies damage dealers (20+ HP loss)
+  - Smart filtering (excludes grenades, molotovs)
+  - Immediate switch to shooter (+40 bonus for 5s)
+- **Upset Victory:**
+  - Detects underdog wins (+100 bonus)
+  - Immediate switch to winner
+
 🚀 **Standalone EXE**
 - No installation required
 - Single .exe file
