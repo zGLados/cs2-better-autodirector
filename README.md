@@ -66,12 +66,24 @@ better-autoobserver/
 
 🎯 **Intelligent Encounter Prediction**
 - Automatically detects when players from different teams are approaching each other
-- Calculates priority based on distance, equipment value, HP, and skill
+- Advanced priority system: distance (most important!), equipment value, kills, HP
+- **Current player bonus:** Camera stays with players in active fights (+100 priority)
+- Smart distance thresholds: Focuses on 0-2000 units (where kills actually happen)
 
 ⚡ **Smart Switching**
-- Automatically switches to the most exciting player
-- Takes into account: Distance between opponents, weapon value, kills, HP status
-- Rate limiting prevents too frequent switching (min. 3 seconds)
+- Automatically switches to the most exciting encounters
+- Prioritizes close-range fights (< 300 units = +150 priority!)
+- **Camera stability:** Stays with current player if they're in action
+- **Dead player detection:** Immediately switches away when spectated player dies
+- Rate limiting: 2 seconds between switches (bypassed on player death)
+
+📊 **Sophisticated Priority Algorithm**
+- Distance-based (150 to 20 points based on range)
+- Equipment value consideration
+- Skill level tracking (kills × 3.0 multiplier)  
+- Health status awareness
+- Defuser bonus for bomb situations
+- 👉 **[Full priority system documentation](docs/CAMERA_PRIORITY.md)**
 
 🚀 **Standalone EXE**
 - No installation required

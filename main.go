@@ -150,7 +150,11 @@ SETUP:
 IMPORTANT:
 - You must be in spectator mode!
 - The game must be in the foreground for keyboard inputs to work
+- Run as Administrator if switches don't work
+- Position data only available in GOTV/Demo mode (not live spectator)
 - Press Ctrl+C to exit
+
+TIP: Use -v flag for verbose logging (better-autoobserver.exe -v)
 
 `)
 

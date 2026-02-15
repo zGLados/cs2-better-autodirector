@@ -3,6 +3,8 @@ package main
 import (
 	"math"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -38,16 +40,18 @@ type Encounter struct {
 
 // PlayerAnalyzer analyzes the game state and finds the best action
 type PlayerAnalyzer struct {
-	lastSwitchTime     time.Time
-	minSwitchInterval  time.Duration
-	currentSpectatedID string
+	lastSwitchTime       time.Time
+	minSwitchInterval    time.Duration
+	currentSpectatedID   string
+	positionWarningShown bool
 }
 
 // NewPlayerAnalyzer creates a new Player Analyzer
 func NewPlayerAnalyzer() *PlayerAnalyzer {
 	return &PlayerAnalyzer{
-		lastSwitchTime:    time.Now(),
-		minSwitchInterval: 3 * time.Second,
+		lastSwitchTime:       time.Now(),
+		minSwitchInterval:    2 * time.Second, // Reduced from 3s for more responsive switching
+		positionWarningShown: false,
 	}
 }
 
@@ -64,6 +68,28 @@ func CalculateDistance3D(pos1, pos2 Position) float64 {
 	dy := pos2.Y - pos1.Y
 	dz := pos2.Z - pos1.Z
 	return math.Sqrt(dx*dx + dy*dy + dz*dz)
+}
+
+// parsePositionString parses position from string format "X, Y, Z"
+// CS:GO/CS2 sends position as string like "-1520.06, 430.89, -63.97"
+func parsePositionString(posStr string) Position {
+	parts := strings.Split(posStr, ",")
+	if len(parts) != 3 {
+		LogVerbose("[ANALYZER] ⚠️  Invalid position string format: '%s'", posStr)
+		return Position{X: 0, Y: 0, Z: 0}
+	}
+
+	x, errX := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64)
+	y, errY := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
+	z, errZ := strconv.ParseFloat(strings.TrimSpace(parts[2]), 64)
+
+	if errX != nil || errY != nil || errZ != nil {
+		LogVerbose("[ANALYZER] ⚠️  Error parsing position string '%s': X=%v, Y=%v, Z=%v",
+			posStr, errX, errY, errZ)
+		return Position{X: 0, Y: 0, Z: 0}
+	}
+
+	return Position{X: x, Y: y, Z: z}
 }
 
 // GetPlayerInfo extracts player data from the game state
@@ -89,20 +115,47 @@ func GetPlayerInfo(gameState map[string]interface{}) []PlayerInfo {
 		}
 
 		// Extract position
-		posMap, _ := playerMap["position"].(map[string]interface{})
-		position := Position{
-			X: getFloatValue(posMap, "x"),
-			Y: getFloatValue(posMap, "y"),
-			Z: getFloatValue(posMap, "z"),
-		}
+		// CS:GO/CS2 sends position as STRING in format "X, Y, Z"
+		var position Position
+		if posData, hasPos := playerMap["position"]; hasPos {
+			// Try as string first (CS:GO/CS2 format)
+			if posStr, ok := posData.(string); ok {
+				position = parsePositionString(posStr)
 
-		// Debug: Log if position is zero (potential issue)
-		if VerboseMode && position.X == 0 && position.Y == 0 && position.Z == 0 {
-			LogVerbose("[ANALYZER] ⚠️  Player %s has ZERO position - GSI not sending position data!",
-				getStringValue(playerMap, "name"))
-		} else if VerboseMode {
-			LogVerbose("[ANALYZER] Player %s position: X=%.1f Y=%.1f Z=%.1f",
-				getStringValue(playerMap, "name"), position.X, position.Y, position.Z)
+				if VerboseMode {
+					if position.X == 0 && position.Y == 0 && position.Z == 0 {
+						LogVerbose("[ANALYZER] ⚠️  Player %s: position string is '%s' but parsed as ZERO!",
+							getStringValue(playerMap, "name"), posStr)
+					} else {
+						LogVerbose("[ANALYZER] ✓ Player %s position: X=%.1f Y=%.1f Z=%.1f (from string '%s')",
+							getStringValue(playerMap, "name"), position.X, position.Y, position.Z, posStr)
+					}
+				}
+			} else if posMap, ok := posData.(map[string]interface{}); ok {
+				// Fallback: try as map (old format or other implementations)
+				position = Position{
+					X: getFloatValue(posMap, "x"),
+					Y: getFloatValue(posMap, "y"),
+					Z: getFloatValue(posMap, "z"),
+				}
+
+				if VerboseMode {
+					LogVerbose("[ANALYZER] ✓ Player %s position from map: X=%.1f Y=%.1f Z=%.1f",
+						getStringValue(playerMap, "name"), position.X, position.Y, position.Z)
+				}
+			} else {
+				if VerboseMode {
+					LogVerbose("[ANALYZER] ⚠️  Player %s: position has unexpected type %T",
+						getStringValue(playerMap, "name"), posData)
+				}
+				position = Position{X: 0, Y: 0, Z: 0}
+			}
+		} else {
+			if VerboseMode {
+				LogVerbose("[ANALYZER] ❌ Player %s: NO 'position' key in GSI data!",
+					getStringValue(playerMap, "name"))
+			}
+			position = Position{X: 0, Y: 0, Z: 0}
 		}
 
 		matchStats, _ := playerMap["match_stats"].(map[string]interface{})
@@ -131,6 +184,15 @@ func GetPlayerInfo(gameState map[string]interface{}) []PlayerInfo {
 func PredictEncounters(players []PlayerInfo) []Encounter {
 	var encounters []Encounter
 
+	// Check if we have position data
+	hasPositionData := false
+	for _, p := range players {
+		if p.Position.X != 0 || p.Position.Y != 0 || p.Position.Z != 0 {
+			hasPositionData = true
+			break
+		}
+	}
+
 	for i := 0; i < len(players); i++ {
 		for j := i + 1; j < len(players); j++ {
 			p1 := players[i]
@@ -141,18 +203,28 @@ func PredictEncounters(players []PlayerInfo) []Encounter {
 				continue
 			}
 
-			distance := CalculateDistance2D(p1.Position, p2.Position)
-
-			// Only encounters under 3000 units
-			if distance < 3000 {
-				priority := CalculateEncounterPriority(p1, p2, distance)
-				encounters = append(encounters, Encounter{
-					Player1:  p1,
-					Player2:  p2,
-					Distance: distance,
-					Priority: priority,
-				})
+			var distance float64
+			if hasPositionData {
+				distance = CalculateDistance2D(p1.Position, p2.Position)
+				// Focus on close to medium range encounters (where kills happen)
+				// 0-500: Very close (grenades, shotguns)
+				// 500-1500: Medium range (rifles)
+				// 1500-2000: Long range (AWP, etc.)
+				if distance >= 2000 {
+					continue
+				}
+			} else {
+				// No position data - use 0 as placeholder and rely on other factors
+				distance = 0
 			}
+
+			priority := CalculateEncounterPriority(p1, p2, distance, hasPositionData)
+			encounters = append(encounters, Encounter{
+				Player1:  p1,
+				Player2:  p2,
+				Distance: distance,
+				Priority: priority,
+			})
 		}
 	}
 
@@ -165,36 +237,49 @@ func PredictEncounters(players []PlayerInfo) []Encounter {
 }
 
 // CalculateEncounterPriority calculates the priority of an encounter
-func CalculateEncounterPriority(p1, p2 PlayerInfo, distance float64) float64 {
+func CalculateEncounterPriority(p1, p2 PlayerInfo, distance float64, hasPositionData bool) float64 {
 	priority := 0.0
 
-	// 1. Distance-based priority
-	if distance < 500 {
-		priority += 100 // Very high risk
-	} else if distance < 1000 {
-		priority += 70
-	} else if distance < 1500 {
-		priority += 50
-	} else if distance < 2000 {
-		priority += 30
+	// 1. Distance-based priority (HEAVILY weighted - this is where action happens!)
+	if hasPositionData {
+		if distance < 300 {
+			priority += 150 // VERY high priority - imminent fight!
+		} else if distance < 600 {
+			priority += 120 // High priority - close combat
+		} else if distance < 1000 {
+			priority += 80 // Medium-close range
+		} else if distance < 1500 {
+			priority += 50 // Medium range
+		} else {
+			priority += 20 // Long range - less likely to result in kills
+		}
 	} else {
-		priority += 10
+		// Without position data, give base priority for any matchup
+		priority += 20
 	}
 
-	// 2. Equipment-Value
+	// 2. Equipment-Value (increased weight when no position data)
 	avgEquipment := float64(p1.EquipmentValue+p2.EquipmentValue) / 2.0
-	priority += avgEquipment / 200.0
+	if hasPositionData {
+		priority += avgEquipment / 200.0
+	} else {
+		priority += avgEquipment / 100.0 // Double weight without position
+	}
 
-	// 3. Skill level (Kills)
+	// 3. Skill level (Kills) (increased weight when no position data)
 	avgKills := float64(p1.Kills+p2.Kills) / 2.0
-	priority += avgKills * 3.0
+	if hasPositionData {
+		priority += avgKills * 3.0
+	} else {
+		priority += avgKills * 5.0 // More weight without position
+	}
 
-	// 4. Health status (low HP = more exciting)
+	// 4. Health status (low HP = more exciting, but also more likely to die soon)
 	if p1.Health < 50 || p2.Health < 50 {
-		priority += 15
+		priority += 10 // Reduced from 15 - low HP is risky for spectating
 	}
 	if p1.Health < 30 || p2.Health < 30 {
-		priority += 15
+		priority += 10 // Reduced from 15 - very risky
 	}
 
 	// 5. Defuser bonus
@@ -207,26 +292,119 @@ func CalculateEncounterPriority(p1, p2 PlayerInfo, distance float64) float64 {
 
 // GetBestPlayerToSpectate finds the best player to observe
 func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface{}) string {
-	// Rate limiting
-	if time.Since(pa.lastSwitchTime) < pa.minSwitchInterval {
-		timeSinceLastSwitch := time.Since(pa.lastSwitchTime).Seconds()
-		LogVerbose("[ANALYZER] Rate limiting active - waited %.1fs of %.0fs", timeSinceLastSwitch, pa.minSwitchInterval.Seconds())
-		return ""
+	players := GetPlayerInfo(gameState)
+
+	// PRIORITY: Check if currently spectated player is dead
+	if pa.currentSpectatedID != "" {
+		currentPlayerDead := true
+		for _, p := range players {
+			if p.SteamID == pa.currentSpectatedID {
+				currentPlayerDead = false
+				break
+			}
+		}
+
+		if currentPlayerDead {
+			LogInfo("☠️  Currently spectated player DIED - forcing immediate switch!")
+			pa.currentSpectatedID = "" // Reset to force switch
+			// Skip rate limiting when player dies
+		} else {
+			// Normal rate limiting for alive player
+			if time.Since(pa.lastSwitchTime) < pa.minSwitchInterval {
+				timeSinceLastSwitch := time.Since(pa.lastSwitchTime).Seconds()
+				LogVerbose("[ANALYZER] Rate limiting active - waited %.1fs of %.0fs", timeSinceLastSwitch, pa.minSwitchInterval.Seconds())
+				return ""
+			}
+		}
+	} else {
+		// No one spectated yet, check normal rate limit
+		if time.Since(pa.lastSwitchTime) < pa.minSwitchInterval {
+			timeSinceLastSwitch := time.Since(pa.lastSwitchTime).Seconds()
+			LogVerbose("[ANALYZER] Rate limiting active - waited %.1fs of %.0fs", timeSinceLastSwitch, pa.minSwitchInterval.Seconds())
+			return ""
+		}
 	}
 
-	players := GetPlayerInfo(gameState)
 	if len(players) == 0 {
 		LogVerbose("[ANALYZER] No players found in game state")
 		return ""
 	}
 
-	LogVerbose("[ANALYZER] Found %d players", len(players))
+	LogVerbose("[ANALYZER] Found %d alive players", len(players))
+
+	// Check for position data and warn once
+	if !pa.positionWarningShown {
+		hasPositionData := false
+		positionKeyExists := false
+
+		for _, p := range players {
+			if p.Position.X != 0 || p.Position.Y != 0 || p.Position.Z != 0 {
+				hasPositionData = true
+				break
+			}
+		}
+
+		// Check if position key exists in game state (as string or map)
+		if allPlayers, ok := gameState["allplayers"].(map[string]interface{}); ok {
+			for _, playerData := range allPlayers {
+				if playerMap, ok := playerData.(map[string]interface{}); ok {
+					if posData, hasPos := playerMap["position"]; hasPos {
+						// Position can be string or map
+						if posStr, ok := posData.(string); ok && posStr != "" {
+							positionKeyExists = true
+							break
+						} else if _, ok := posData.(map[string]interface{}); ok {
+							positionKeyExists = true
+							break
+						}
+					}
+				}
+			}
+		}
+
+		if !positionKeyExists {
+			LogInfo("❌ CRITICAL: NO POSITION DATA IN GSI!")
+			LogInfo("   The 'position' key is missing from GSI data")
+			LogInfo("   Check that you are in GOTV/Demo mode, not spectator")
+			LogInfo("   Or CS:GO/CS2 is not sending position data at all")
+			LogInfo("   → Using FALLBACK: equipment/kills only")
+			pa.positionWarningShown = true
+		} else if !hasPositionData {
+			LogInfo("⚠️  Position coordinates are all ZERO")
+			LogInfo("   Position key exists but coords are 0,0,0")
+			LogInfo("   This might be normal during freezetime/warmup")
+			LogInfo("   → Using FALLBACK: equipment/kills only")
+			pa.positionWarningShown = true
+		} else {
+			LogInfo("✅ Position data is available and working!")
+			pa.positionWarningShown = true
+		}
+	}
 
 	// Find encounters
 	encounters := PredictEncounters(players)
 	LogVerbose("[ANALYZER] Detected %d potential encounters", len(encounters))
 
 	if len(encounters) > 0 {
+		// Apply bonus to encounters involving the currently spectated player
+		for i := range encounters {
+			if pa.currentSpectatedID != "" {
+				if encounters[i].Player1.SteamID == pa.currentSpectatedID ||
+					encounters[i].Player2.SteamID == pa.currentSpectatedID {
+					// Give significant bonus to current player's encounters
+					originalPriority := encounters[i].Priority
+					encounters[i].Priority += 100.0
+					LogVerbose("[ANALYZER] ⭐ Current player in encounter: +100 priority (%.1f → %.1f)",
+						originalPriority, encounters[i].Priority)
+				}
+			}
+		}
+
+		// Re-sort after applying bonuses
+		sort.Slice(encounters, func(i, j int) bool {
+			return encounters[i].Priority > encounters[j].Priority
+		})
+
 		// Take the most important encounter
 		encounter := encounters[0]
 
@@ -235,15 +413,55 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			encounter.Player2.Name, encounter.Player2.Team,
 			encounter.Distance, encounter.Priority)
 
-		// Choose the better player
+		// Choose the better player from the encounter
 		var bestPlayerID string
-		if encounter.Player1.EquipmentValue > encounter.Player2.EquipmentValue ||
-			encounter.Player1.Kills > encounter.Player2.Kills {
+		var bestPlayerName string
+
+		// If currently spectating one of the players in this encounter, stay with them
+		if pa.currentSpectatedID == encounter.Player1.SteamID {
 			bestPlayerID = encounter.Player1.SteamID
-			LogVerbose("[ANALYZER] → Switching to %s (better equipment/kills)", encounter.Player1.Name)
-		} else {
+			bestPlayerName = encounter.Player1.Name
+			LogVerbose("[ANALYZER] ✓ Staying with current player %s in this encounter", bestPlayerName)
+		} else if pa.currentSpectatedID == encounter.Player2.SteamID {
 			bestPlayerID = encounter.Player2.SteamID
-			LogVerbose("[ANALYZER] → Switching to %s (better equipment/kills)", encounter.Player2.Name)
+			bestPlayerName = encounter.Player2.Name
+			LogVerbose("[ANALYZER] ✓ Staying with current player %s in this encounter", bestPlayerName)
+		} else {
+			// Choose based on equipment/kills/health
+			p1Score := float64(encounter.Player1.EquipmentValue)/100 + float64(encounter.Player1.Kills)*10
+			p2Score := float64(encounter.Player2.EquipmentValue)/100 + float64(encounter.Player2.Kills)*10
+
+			// Bonus for more health
+			if encounter.Player1.Health > 50 {
+				p1Score += 5
+			}
+			if encounter.Player2.Health > 50 {
+				p2Score += 5
+			}
+
+			if p1Score > p2Score {
+				bestPlayerID = encounter.Player1.SteamID
+				bestPlayerName = encounter.Player1.Name
+				LogVerbose("[ANALYZER] → Switching to %s (score: %.1f vs %.1f)", bestPlayerName, p1Score, p2Score)
+			} else {
+				bestPlayerID = encounter.Player2.SteamID
+				bestPlayerName = encounter.Player2.Name
+				LogVerbose("[ANALYZER] → Switching to %s (score: %.1f vs %.1f)", bestPlayerName, p2Score, p1Score)
+			}
+		}
+
+		// Verify player is still alive before switching
+		playerIsAlive := false
+		for _, p := range players {
+			if p.SteamID == bestPlayerID {
+				playerIsAlive = true
+				break
+			}
+		}
+
+		if !playerIsAlive {
+			LogVerbose("[ANALYZER] ⚠️  Target player %s is DEAD, skipping switch", bestPlayerName)
+			return ""
 		}
 
 		// Only switch if it's a different player
@@ -304,4 +522,12 @@ func getBoolValue(m map[string]interface{}, key string) bool {
 		return val
 	}
 	return false
+}
+
+func getMapKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }

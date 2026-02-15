@@ -39,6 +39,9 @@ desktop.ini
 # Log directory
 logs/
 
+# Test directory with diagnostic tools
+test/*
+
 # Installer outputs
 Output/
 *.msi

@@ -53,7 +53,7 @@ func (sc *SpectatorController) UpdatePlayerSlots(gameState map[string]interface{
 func (sc *SpectatorController) SwitchToPlayer(steamID string) bool {
 	slot, ok := sc.steamIDToSlot[steamID]
 	if !ok {
-		LogVerbose("SteamID %s not found in player slots", steamID)
+		LogVerbose("[CONTROLLER] ❌ SteamID %s not found in player slots", steamID)
 		return false
 	}
 
@@ -76,9 +76,24 @@ func (sc *SpectatorController) SwitchToPlayer(steamID string) bool {
 		key = string(rune('0' + slot))
 	}
 
-	// Press key with robotgo
-	robotgo.KeyTap(key)
-	time.Sleep(50 * time.Millisecond)
+	// Use more reliable key press method
+	// Hold key down briefly instead of just tapping
+	LogVerbose("[CONTROLLER] Pressing key '%s' (hold method)...", key)
+
+	// Method 1: KeyToggle (more reliable than KeyTap)
+	robotgo.KeyToggle(key, "down")
+	time.Sleep(100 * time.Millisecond)
+	robotgo.KeyToggle(key, "up")
+	time.Sleep(100 * time.Millisecond)
+
+	// Repeat once more for extra reliability
+	robotgo.KeyToggle(key, "down")
+	time.Sleep(100 * time.Millisecond)
+	robotgo.KeyToggle(key, "up")
+	time.Sleep(200 * time.Millisecond)
+
+	LogVerbose("[CONTROLLER] ✓ Key sequence completed")
+	LogVerbose("[CONTROLLER] NOTE: CS:GO/CS2 must be in focus for keys to work!")
 
 	return true
 }
