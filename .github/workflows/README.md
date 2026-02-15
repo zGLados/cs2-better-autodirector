@@ -10,17 +10,68 @@ This folder contains automated build workflows for GitHub Actions.
 
 #### Trigger Methods:
 
-1. **Automatic (Git Tags):**
+1. **Automatic (Every Push to Dev):**
+   ```bash
+   git add .
+   git commit -m "Update feature X"
+   git push origin dev
+   ```
+   → Builds installer automatically, uploads as artifact (no release)
+   → Perfect for testing changes
+
+2. **Automatic (Git Tags - Official Releases):**
    ```bash
    git tag v3.1.0
    git push origin v3.1.0
    ```
-   → Creates a GitHub Release with the installer attached
+   → Builds installer + creates GitHub Release with installer attached
+   → Perfect for official releases
 
-2. **Manual (GitHub UI):**
+3. **Automatic (Pull Requests):**
+   ```bash
+   # Create PR on GitHub
+   ```
+   → Builds installer to verify PR doesn't break the build
+   → No release created, only artifact
+
+4. **Manual (GitHub UI):**
    - Go to: Repository → Actions → "Build Windows Installer"
    - Click "Run workflow" → Select branch → Run
    → Creates an artifact (downloadable for 90 days)
+   → No release created
+
+### Workflow Behavior:
+
+| Trigger | Builds Installer? | Creates Artifact? | Creates Release? |
+|---------|-------------------|-------------------|------------------|
+| Push to `dev` | ✅ Yes | ✅ Yes (90 days) | ❌ No |
+| Pull Request | ✅ Yes | ✅ Yes (90 days) | ❌ No |
+| Tag `v*` | ✅ Yes | ✅ Yes (90 days) | ✅ Yes (permanent) |
+| Manual Run | ✅ Yes | ✅ Yes (90 days) | ❌ No |
+
+### Recommended Workflow:
+
+**Daily development:**
+```bash
+# Make changes, commit, push to dev
+git add .
+git commit -m "Add new feature"
+git push origin dev
+# → Automatic build, download from Actions → Artifacts
+```
+
+**Official release:**
+```bash
+# 1. Update CHANGELOG.md, version numbers, etc.
+git add .
+git commit -m "Release v3.2.0"
+git push origin dev
+
+# 2. Create and push tag
+git tag -a v3.2.0 -m "Version 3.2.0 - Description"
+git push origin v3.2.0
+# → Automatic build + Release on GitHub
+```
 
 #### What it does:
 

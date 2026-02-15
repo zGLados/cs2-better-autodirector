@@ -2,8 +2,13 @@ name: Build Windows Installer
 
 on:
   push:
+    branches:
+      - dev  # Build on every push to dev branch
     tags:
-      - 'v*'  # Triggered on version tags like v3.1.0
+      - 'v*'  # Build on version tags like v3.1.0
+  pull_request:
+    branches:
+      - dev  # Build on pull requests to dev
   workflow_dispatch:  # Manual trigger from GitHub UI
 
 jobs:

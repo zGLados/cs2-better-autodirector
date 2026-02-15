@@ -505,13 +505,32 @@ The workflow is already configured in `.github/workflows/build-installer.yml`. N
 
 ### Build Methods
 
-#### Method 1: Automatic Build on Release Tag (Recommended)
+The GitHub Actions workflow supports multiple triggers for different use cases:
+
+#### Method 1: Automatic Build on Every Push (Development)
+
+```bash
+# Simply push to dev branch
+git add .
+git commit -m "Update feature X"
+git push origin dev
+```
+
+**What happens:**
+1. GitHub Actions automatically starts building (~5-7 minutes)
+2. Installer is uploaded as **Artifact** (downloadable for 90 days)
+3. **No GitHub Release created** (only for testing)
+4. Download from: Actions → Workflow run → Artifacts
+
+**Use case:** Daily development, testing changes before release.
+
+#### Method 2: Automatic Build on Release Tag (Official Releases)
 
 ```bash
 # 1. Update version in CHANGELOG.md, README.md, etc.
 git add .
 git commit -m "Release v3.1.0"
-git push origin main
+git push origin dev
 
 # 2. Create and push version tag
 git tag -a v3.1.0 -m "Version 3.1.0 - Professional Installer"
@@ -519,22 +538,64 @@ git push origin v3.1.0
 ```
 
 **What happens:**
-1. GitHub Actions automatically starts building
-2. ~8 minutes later, build completes
-3. Installer is automatically uploaded to GitHub Releases
+1. GitHub Actions automatically starts building (~5-7 minutes)
+2. Installer is uploaded as Artifact **AND**
+3. **GitHub Release is created** with installer attached (permanent)
 4. Available at: `https://github.com/YOUR_USERNAME/cs2-better-autodirector/releases/tag/v3.1.0`
 
-#### Method 2: Manual Build (Any Branch/Commit)
+**Use case:** Official releases for users to download.
+
+#### Method 3: Automatic Build on Pull Requests
+
+When you create a Pull Request to `dev`:
+- Installer is automatically built to verify PR doesn't break the build
+- Artifact is created (no release)
+- Perfect for code review workflow
+
+#### Method 4: Manual Build (Any Branch/Commit)
 
 ```bash
 # 1. Go to: https://github.com/YOUR_USERNAME/cs2-better-autodirector/actions
 # 2. Click "Build Windows Installer" workflow
 # 3. Click "Run workflow" → Select branch → "Run workflow"
-# 4. Wait ~8 minutes
+# 4. Wait ~5-7 minutes
 # 5. Download installer from "Artifacts" section
 ```
 
-**Use case:** Test builds from feature branches before release.
+**Use case:** Test builds from feature branches, one-off builds.
+
+### Workflow Behavior Summary
+
+| Trigger | Builds? | Artifact? | GitHub Release? | Use Case |
+|---------|---------|-----------|-----------------|----------|
+| Push to `dev` | ✅ | ✅ 90 days | ❌ | Daily development |
+| Pull Request | ✅ | ✅ 90 days | ❌ | Code review |
+| Tag `v*.*.*` | ✅ | ✅ 90 days | ✅ Permanent | Official releases |
+| Manual trigger | ✅ | ✅ 90 days | ❌ | Testing |
+
+### Recommended Workflow for Development
+
+**Daily work:**
+```bash
+# Make changes, commit, push → automatic build
+git add .
+git commit -m "Add feature X"
+git push origin dev
+# → Artifact available in Actions tab for testing
+```
+
+**Official release:**
+```bash
+# 1. Finalize changes, update version numbers
+git add .
+git commit -m "Release v3.2.0"
+git push origin dev
+
+# 2. Create tag → triggers release build
+git tag -a v3.2.0 -m "Version 3.2.0 - New features"
+git push origin v3.2.0
+# → Installer attached to GitHub Release
+```
 
 ### GitHub Actions Workflow
 

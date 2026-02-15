@@ -191,7 +191,10 @@ Download and run `CS2BetterAutoDirector-Setup.exe` for a professional installati
    build-installer.bat
    ```
    The installer will be created in the `build/` folder.
-3. **Automated GitHub Actions**: Push a version tag to auto-build (see [docs/BUILD.md](docs/BUILD.md#automated-builds-with-github-actions))
+3. **Automated Builds (GitHub Actions)**:
+   - **Every push to dev**: Automatic build → Download from Actions → Artifacts
+   - **Version tags** (`v3.1.0`): Automatic build → GitHub Release created
+   - See [docs/BUILD.md](docs/BUILD.md#automated-builds-with-github-actions) for details
 
 **Silent/Automated Installation:**
 ```cmd
