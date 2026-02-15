@@ -1,6 +1,53 @@
 # CS2 Better Auto Director - Changelog
 
-## Version 3.0.0 (Current) - GUI Edition
+## Version 3.1.0 (Current) - Professional Installer
+
+### 🚀 Windows Installer Package
+
+**New Installation Method:**
+- **Professional Windows Installer**: `CS2BetterAutoDirector-Setup.exe` (~5-7 MB)
+- **Automated Build Pipeline**: One-click compilation with automatic dependency installation
+- **Dual Installation Modes**: User-only (AppData) or system-wide (Program Files)
+
+**Installer Features:**
+- ✅ **Automatic Dependency Installation**: Auto-downloads Inno Setup 6 and Node.js if missing
+- ✅ **Smart CS2 Detection**: Finds CS2 installation via Steam registry
+- ✅ **Automatic Config Copy**: Optionally copies GSI config to CS2 folder (enabled by default)
+- ✅ **Manual Path Override**: Browse/enter CS2 path manually if auto-detection fails
+- ✅ **Admin Elevation**: Automatically requests admin rights when installed to Program Files
+- ✅ **Start Menu Integration**: Creates shortcuts in Start Menu and Programs folder
+- ✅ **Optional Desktop Icon**: Choose to create desktop shortcut during installation
+- ✅ **GitHub Repository Link**: Quick access to project repository from Start Menu
+- ✅ **Clean Uninstallation**: Removes all files including logs folder
+- ✅ **Multi-Language Support**: English and German interface
+
+**Installation Modes:**
+1. **Install for me only** (Default):
+   - Location: `%LOCALAPPDATA%\Programs\CS2BetterAutoDirector`
+   - No admin rights required
+   - App runs without elevation
+
+2. **Install for all users** (Admin):
+   - Location: `C:\Program Files\CS2BetterAutoDirector`
+   - Requires admin installation
+   - App automatically elevates with admin rights
+
+**Build Scripts:**
+- `scripts/build-installer.ps1` - Automated installer creation
+- `scripts/build-installer.bat` - Batch wrapper
+- `scripts/install-innosetup.ps1` - Auto-install Inno Setup 6
+- `scripts/install-nodejs.ps1` - Auto-install Node.js 20+
+- `scripts/installer.iss` - Inno Setup configuration (176 lines)
+
+**Documentation Updates:**
+- Updated [README.md](README.md) with installation methods
+- Updated [docs/BUILD.md](docs/BUILD.md) with detailed installer guide
+- Added troubleshooting section
+- Added customization guide
+
+---
+
+## Version 3.0.0 - GUI Edition
 
 ### 🎨 Major UI Update - Wails Dashboard
 

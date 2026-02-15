@@ -53,14 +53,13 @@ See [docs/BUILD.md](docs/BUILD.md) for detailed build instructions.
 
 ```
 cs2-better-autodirector/
-├── 📄 cs2-better-autodirector.exe   # Main executable (GUI + CLI)
 ├── 📄 README.md                     # This file
+├── 📄 CHANGELOG.md                  # Version history
 │
-├── 📁 cs2-autodirector-gui/         # Wails GUI Application
+├── 📁 gui/                          # Wails GUI Application Source
 │   ├── 📄 main.go                   # Entry point (GUI + CLI mode)
 │   ├── 📄 app.go                    # GUI backend bindings
-│   ├── 📄 autodirector.go           # AutoDirector logic
-│   ├── 📄 gsi_server.go             # Game State Integration
+│   ├── 📄 gsi_server.go             # Game State Integration Server
 │   ├── 📄 player_analyzer.go        # Encounter detection AI
 │   ├── 📄 spectator_controller.go   # Keyboard simulation
 │   ├── 📄 logger.go                 # Logging system
@@ -81,11 +80,21 @@ cs2-better-autodirector/
 │   ├── gamestate_integration_autodirector.cfg
 │   └── spectator_bindings.cfg
 │
-├── 📁 docs/                         # Documentation
-│   ├── BUILD.md                    # Build instructions
-│   └── CAMERA_PRIORITY.md          # Priority system docs
+├── 📁 scripts/                      # Build & installer scripts
+│   ├── build-installer.ps1          # Build installer (automated)
+│   ├── build-installer.bat          # Build installer (batch wrapper)
+│   ├── installer.iss                # Inno Setup script
+│   ├── install-innosetup.ps1        # Auto-install Inno Setup
+│   └── install-nodejs.ps1           # Auto-install Node.js
 │
-└── 📁 logs/                         # Runtime logs
+├── 📁 build/                        # Installer output
+│   └── CS2BetterAutoDirector-Setup.exe
+│
+├── 📁 docs/                         # Documentation
+│   ├── BUILD.md                     # Build & installer instructions
+│   └── CAMERA_PRIORITY.md           # Priority system docs
+│
+└── 📁 logs/                         # Runtime logs (auto-created)
     └── autodirector_[timestamp].log
 ```
 
@@ -157,7 +166,38 @@ cs2-better-autodirector/
 
 ## 🔧 Installation
 
-### Method 1: Build from Source
+### Method 1: Windows Installer (Recommended)
+
+Download and run `CS2BetterAutoDirector-Setup.exe` for a professional installation experience:
+
+**Features:**
+- ✅ One-click installation
+- ✅ Automatic CS2 config detection (via Steam registry)
+- ✅ Optional automatic config file copy to CS2 folder
+- ✅ Start Menu shortcuts and optional Desktop icon
+- ✅ Choose between user-only or system-wide installation
+- ✅ Auto-elevates with admin rights when installed to Program Files
+- ✅ Clean uninstallation (removes all files including logs)
+
+**Installation Options:**
+- **Install for me only**: Installs to `%LOCALAPPDATA%\Programs\CS2BetterAutoDirector` (no admin required)
+- **Install for all users**: Installs to `C:\Program Files\CS2BetterAutoDirector` (requires admin, app runs with admin rights)
+
+**Installer Creation:**
+```cmd
+cd scripts
+build-installer.bat
+```
+The installer will be created in the `build/` folder.
+
+### Method 2: Portable EXE
+
+Download `cs2-better-autodirector.exe` and run it directly:
+- No installation required
+- Single .exe file (~12 MB)
+- Manually copy config files to CS2 folder (see below)
+
+### Method 3: Build from Source
 
 For building from source, see [docs/BUILD.md](docs/BUILD.md) for detailed instructions.
 
@@ -165,19 +205,16 @@ For building from source, see [docs/BUILD.md](docs/BUILD.md) for detailed instru
 
 1. **Install dependencies:**
    - [Go 1.21+](https://go.dev/dl/)
-   - [TDM-GCC](https://jmeubank.github.io/tdm-gcc/download/)
+   - [Node.js 20+](https://nodejs.org/)
+   - [Wails](https://wails.io/docs/gettingstarted/installation)
 
 2. **Build:**
    ```cmd
-   cd scripts
-   build.bat
+   cd gui
+   wails build -skipbindings
    ```
 
-3. **Done!** The `cs2-better-autodirector.exe` will be created in the root folder.
-
-### Method 2: Professional Installer
-
-For creating a professional installer with Inno Setup, see [docs/BUILD.md](docs/BUILD.md).
+3. **Done!** The executable will be in `gui/build/bin/cs2-better-autodirector.exe`
 
 ---
 
