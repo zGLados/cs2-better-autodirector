@@ -125,7 +125,7 @@ echo "Building with Wails..."
 echo "This may take a few minutes..."
 echo ""
 
-wails build -skipbindings
+wails build -skipbindings -tags webkit2gtk_4_1
 
 echo ""
 echo "============================================"

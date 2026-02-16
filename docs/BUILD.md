@@ -123,16 +123,18 @@ chmod +x ./scripts/build.sh
 
 ```bash
 cd gui
-wails build
+wails build -tags webkit2gtk_4_1
 ```
 
 The executable will be created in `gui/build/bin/cs2-better-autodirector`
+
+**Note:** The `-tags webkit2gtk_4_1` flag is required for Ubuntu 24.04+ which uses WebKit2GTK 4.1
 
 **Method 3: Skip Frontend Bindings (Faster)**
 
 ```bash
 cd gui
-wails build -skipbindings
+wails build -skipbindings -tags webkit2gtk_4_1
 ```
 
 **Method 4: Development Mode (with hot-reload)**

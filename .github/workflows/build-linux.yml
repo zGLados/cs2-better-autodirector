@@ -38,7 +38,7 @@ jobs:
       - name: Build GUI Application
         run: |
           cd gui
-          wails build -skipbindings
+          wails build -skipbindings -tags webkit2gtk_4_1
       
       - name: Create Package
         run: |
