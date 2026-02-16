@@ -4,6 +4,8 @@
 
 ### Requirements
 
+#### Windows
+
 Before building, make sure you have installed:
 
 1. **Go 1.22 or higher**: https://go.dev/dl/
@@ -19,32 +21,136 @@ After installation, restart your terminal/PowerShell.
 - **UPX** (for compression): https://upx.github.io/
 - **NSIS** (for installer): https://nsis.sourceforge.io/
 
+#### Linux
+
+Before building, make sure you have installed:
+
+1. **Go 1.22 or higher**: https://go.dev/dl/
+   ```bash
+   # Ubuntu/Debian
+   sudo apt install golang
+   
+   # Fedora
+   sudo dnf install golang
+   
+   # Arch
+   sudo pacman -S go
+   ```
+
+2. **Node.js LTS**: https://nodejs.org/
+   ```bash
+   # Ubuntu/Debian
+   sudo apt install nodejs npm
+   
+   # Fedora
+   sudo dnf install nodejs npm
+   
+   # Arch
+   sudo pacman -S nodejs npm
+   ```
+
+3. **Build Dependencies**:
+   ```bash
+   # Ubuntu/Debian
+   sudo apt install build-essential libgtk-3-dev libwebkit2gtk-4.0-dev
+   
+   # Fedora
+   sudo dnf install gtk3-devel webkit2gtk3-devel
+   
+   # Arch
+   sudo pacman -S gtk3 webkit2gtk
+   ```
+
+4. **Wails CLI v2.11+**:
+   ```bash
+   go install github.com/wailsapp/wails/v2/cmd/wails@latest
+   
+   # Add Go bin to PATH
+   export PATH="$PATH:$(go env GOPATH)/bin"
+   # Add this line to ~/.bashrc or ~/.zshrc
+   ```
+
+After installation, restart your terminal
+
 ### Build the Application
 
-**Method 1: Using Wails (Recommended)**
+#### Windows
+
+**Method 1: Using Automated Script (Easiest)**
 
 ```powershell
-cd cs2-autodirector-gui
+.\scripts\build.ps1
+```
+
+**Method 2: Using Wails Directly**
+
+```powershell
+cd gui
 wails build
 ```
 
-The executable will be created in `cs2-autodirector-gui/build/bin/cs2-better-autodirector.exe`
+The executable will be created in `gui/build/bin/cs2-better-autodirector.exe`
 
-**Method 2: Skip Frontend Bindings (Faster)**
+**Method 3: Skip Frontend Bindings (Faster)**
 
 ```powershell
-cd cs2-autodirector-gui
+cd gui
 wails build -skipbindings
 ```
 
-**Method 3: Development Mode (with hot-reload)**
+**Method 4: Development Mode (with hot-reload)**
 
 ```powershell
-cd cs2-autodirector-gui
+cd gui
 wails dev
 ```
 
 This opens the app in development mode with automatic reload on code changes.
+
+#### Linux
+
+**Method 1: Using Automated Script (Easiest)**
+
+```bash
+chmod +x ./scripts/build.sh
+./scripts/build.sh
+```
+
+**Method 2: Using Wails Directly**
+
+```bash
+cd gui
+wails build
+```
+
+The executable will be created in `gui/build/bin/cs2-better-autodirector`
+
+**Method 3: Skip Frontend Bindings (Faster)**
+
+```bash
+cd gui
+wails build -skipbindings
+```
+
+**Method 4: Development Mode (with hot-reload)**
+
+```bash
+cd gui
+wails dev
+```
+
+**Method 5: Create Distributable Package**
+
+```bash
+# First build the application
+./scripts/build.sh
+
+# Then create tar.gz package
+chmod +x ./scripts/build-package.sh
+./scripts/build-package.sh
+```
+
+This creates `build/CS2BetterAutoDirector-Linux-x64.tar.gz` with installer scripts.
 
 ### Build Output
 

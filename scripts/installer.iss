@@ -3,7 +3,7 @@
 
 [Setup]
 AppName=CS2 Better Auto Director
-AppVersion=0.2.1
+AppVersion=0.2.2
 AppPublisher=CS2 Better Auto Director
 DefaultDirName={autopf}\CS2BetterAutoDirector
 DefaultGroupName=CS2 Better Auto Director

@@ -1,6 +1,6 @@
 # CS2 Better Auto Director - Changelog
 
-## Version 0.2.1 (Current)
+## Version 0.2.2 (Current)
 
 ### New Features
 - **Settings Import/Export**: Export and import camera priority settings as JSON files

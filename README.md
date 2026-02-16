@@ -12,7 +12,7 @@
 ```
 
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat&logo=go)](https://go.dev)
-[![Platform](https://img.shields.io/badge/Platform-Windows-blue?style=flat&logo=windows)](https://www.microsoft.com/windows)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-blue?style=flat&logo=windows)](https://github.com)
 [![License](https://img.shields.io/badge/License-Free-green?style=flat)](LICENSE)
 
 </div>
@@ -117,7 +117,7 @@ See [docs/BUILD.md](docs/BUILD.md) for detailed project structure and build inst
 - Live event log stream
 - Statistics dashboard (sniper kills, upset victories, damage detections)
 - Dark gaming-style theme
-- Built with Wails (native Windows application)
+- Built with Wails (native cross-platform application)
 
 💻 **CLI Mode Available**
 - Run with `-nogui` flag for terminal mode
@@ -145,20 +145,47 @@ Run `CS2BetterAutoDirector-Setup.exe` for:
 
 See [docs/BUILD.md](docs/BUILD.md) for silent installation, command-line options, and building the installer locally.
 
-### Method 2: Portable EXE
+### Method 2: Portable EXE (Windows)
 
 Download `cs2-better-autodirector.exe` from releases and run directly (no installation needed).
 
-### Method 3: Build from Source
+### Method 3: Linux Package
 
+**[Download from GitHub Releases](https://github.com/zGLados/cs2-better-autodirector/releases/latest)**
+
+Download `CS2BetterAutoDirector-Linux-x64.tar.gz` and extract:
+
+```bash
+tar -xzf CS2BetterAutoDirector-Linux-x64.tar.gz
+cd cs2-better-autodirector-linux
+./install.sh
+```
+
+Or run directly without installation:
+```bash
+./cs2-better-autodirector          # GUI mode
+./cs2-better-autodirector -nogui   # CLI mode
+```
+
+**Requirements:** GTK3, WebKit2GTK (usually pre-installed on most distros)
+
+### Method 4: Build from Source
+
+**Windows:**
 ```cmd
+cd gui
+wails build -skipbindings
+```
+
+**Linux:**
+```bash
 cd gui
 wails build -skipbindings
 ```
 
 Requires: [Go 1.22+](https://go.dev/dl/), [Node.js 20+](https://nodejs.org/), [Wails CLI](https://wails.io)
 
-See [docs/BUILD.md](docs/BUILD.md) for detailed build instructions.
+See [docs/BUILD.md](docs/BUILD.md) for detailed build instructions and dependencies.
 
 ---
 
