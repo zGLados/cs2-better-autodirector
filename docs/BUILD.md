@@ -123,17 +123,27 @@ chmod +x ./scripts/build.sh
 
 ```bash
 cd gui
+
+# Set CGO flags for WebKit2GTK 4.1 (Ubuntu 24.04+)
+export CGO_CFLAGS="$(pkg-config --cflags gtk+-3.0 webkit2gtk-4.1)"
+export CGO_LDFLAGS="$(pkg-config --libs gtk+-3.0 webkit2gtk-4.1)"
+
 wails build -tags webkit2gtk_4_1
 ```
 
 The executable will be created in `gui/build/bin/cs2-better-autodirector`
 
-**Note:** The `-tags webkit2gtk_4_1` flag is required for Ubuntu 24.04+ which uses WebKit2GTK 4.1
+**Note:** Ubuntu 24.04+ uses WebKit2GTK 4.1. Older versions (22.04) use 4.0 and don't need the CGO flags.
 
 **Method 3: Skip Frontend Bindings (Faster)**
 
 ```bash
 cd gui
+
+# Set CGO flags for WebKit2GTK 4.1
+export CGO_CFLAGS="$(pkg-config --cflags gtk+-3.0 webkit2gtk-4.1)"
+export CGO_LDFLAGS="$(pkg-config --libs gtk+-3.0 webkit2gtk-4.1)"
+
 wails build -skipbindings -tags webkit2gtk_4_1
 ```
 

@@ -125,6 +125,10 @@ echo "Building with Wails..."
 echo "This may take a few minutes..."
 echo ""
 
+# Set CGO flags for WebKit2GTK 4.1
+export CGO_CFLAGS="$(pkg-config --cflags gtk+-3.0 webkit2gtk-4.1)"
+export CGO_LDFLAGS="$(pkg-config --libs gtk+-3.0 webkit2gtk-4.1)"
+
 wails build -skipbindings -tags webkit2gtk_4_1
 
 echo ""
