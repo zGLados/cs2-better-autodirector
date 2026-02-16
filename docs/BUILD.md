@@ -51,14 +51,17 @@ Before building, make sure you have installed:
 
 3. **Build Dependencies**:
    ```bash
-   # Ubuntu/Debian
+   # Ubuntu/Debian (24.04+)
+   sudo apt install build-essential libgtk-3-dev libwebkit2gtk-4.1-dev
+   
+   # Ubuntu/Debian (22.04 and older)
    sudo apt install build-essential libgtk-3-dev libwebkit2gtk-4.0-dev
    
    # Fedora
-   sudo dnf install gtk3-devel webkit2gtk3-devel
+   sudo dnf install gtk3-devel webkit2gtk4.1-devel
    
    # Arch
-   sudo pacman -S gtk3 webkit2gtk
+   sudo pacman -S gtk3 webkit2gtk-4.1
    ```
 
 4. **Wails CLI v2.11+**:

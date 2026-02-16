@@ -119,7 +119,7 @@ git push origin v3.2.0
 **Build fails at Wails:**
 - Ensure `gui/go.mod` and `gui/go.sum` are committed
 - Check Go version matches workflow (1.22)
-- Verify pkg-config can find gtk+-3.0 and webkit2gtk-4.0
+- Verify pkg-config can find gtk+-3.0 and webkit2gtk-4.1
 
 **Package not created:**
 - Verify `gui/build/bin/cs2-better-autodirector` exists after build

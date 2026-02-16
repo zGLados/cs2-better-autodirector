@@ -83,12 +83,12 @@ echo ""
 
 # Check Linux build dependencies
 echo "Checking Linux build dependencies..."
-if ! pkg-config --exists gtk+-3.0 webkit2gtk-4.0; then
+if ! pkg-config --exists gtk+-3.0 webkit2gtk-4.1; then
     echo ""
     echo "ERROR: Required GTK/WebKit2GTK libraries not found!"
     echo ""
     echo "Please install build dependencies:"
-    echo "  Ubuntu/Debian: sudo apt install build-essential libgtk-3-dev libwebkit2gtk-4.0-dev"
+    echo "  Ubuntu/Debian: sudo apt install build-essential libgtk-3-dev libwebkit2gtk-4.1-dev"
     echo "  Fedora: sudo dnf install gtk3-devel webkit2gtk3-devel"
     echo "  Arch: sudo pacman -S gtk3 webkit2gtk"
     echo ""
