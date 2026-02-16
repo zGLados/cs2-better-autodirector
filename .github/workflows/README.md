@@ -15,12 +15,16 @@ Automated build pipelines for creating Windows installers and Linux packages on 
 2. Installs Inno Setup (via Chocolatey, ~30 sec)
 3. Builds GUI application (`wails build -skipbindings`)
 4. Compiles installer (`ISCC.exe installer.iss`)
-5. Uploads artifact (90 days retention)
+5. Uploads artifacts (90 days retention):
+   - Portable EXE: `cs2-better-autodirector.exe`
+   - Installer: `CS2BetterAutoDirector-Setup.exe`
 6. Creates GitHub Release (if triggered by tag)
 
 **Build time:** ~5-7 minutes
 
-**Output:** `CS2BetterAutoDirector-Setup.exe`
+**Output:** 
+- `CS2BetterAutoDirector-Setup.exe` (Installer with auto-config)
+- `cs2-better-autodirector.exe` (Portable, no installation needed)
 
 ---
 
@@ -107,7 +111,7 @@ git push origin v3.2.0
 - Check Inno Setup paths in `scripts/installer.iss`
 
 **Release not created:**
-- Ensure tag starts with `v` (e.g., `v0.2.2`, not `0.2.2`)
+- Ensure tag starts with `v` (e.g., `v0.2.3`, not `0.2.3`)
 - Check repository has `contents: write` permission
 
 ### Linux Builds

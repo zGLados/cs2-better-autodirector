@@ -7,7 +7,7 @@
 ║        CS2 Better Auto Director                              ║
 ║                                                              ║
 ║  Intelligent automatic spectating                            ║
-║  Automatically switches to exciting player encounters       ║
+║  Automatically switches to exciting player encounters        ║
 ╚══════════════════════════════════════════════════════════════╝
 ```
 
@@ -147,7 +147,9 @@ See [docs/BUILD.md](docs/BUILD.md) for silent installation, command-line options
 
 ### Method 2: Portable EXE (Windows)
 
-Download `cs2-better-autodirector.exe` from releases and run directly (no installation needed).
+**[Download from GitHub Releases](https://github.com/zGLados/cs2-better-autodirector/releases/latest)**
+
+Download `cs2-better-autodirector.exe` and run directly (no installation needed). Perfect for USB sticks or systems where you can't install software.
 
 ### Method 3: Linux Package
 

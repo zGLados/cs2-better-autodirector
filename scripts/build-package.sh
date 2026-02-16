@@ -6,7 +6,7 @@ set -e
 
 echo "============================================"
 echo "CS2 Better Auto Director - Package Builder"
-echo "Version 0.2.2 - Linux Edition"
+echo "Version 0.2.3 - Linux Edition"
 echo "============================================"
 echo ""
 

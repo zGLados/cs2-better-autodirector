@@ -3,7 +3,7 @@ name: Build Linux Package
 on:
   push:
     tags:
-      - 'v*.*.*'  # Build only on version tags like v0.2.2
+      - 'v*.*.*'  # Build only on version tags like v0.2.3
   workflow_dispatch:  # Manual trigger from GitHub UI
 
 jobs:
