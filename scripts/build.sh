@@ -83,17 +83,32 @@ echo ""
 
 # Check Linux build dependencies
 echo "Checking Linux build dependencies..."
-if ! pkg-config --exists gtk+-3.0 webkit2gtk-4.1; then
+if ! pkg-config --exists gtk+-3.0; then
     echo ""
     echo "ERROR: Required GTK/WebKit2GTK libraries not found!"
     echo ""
     echo "Please install build dependencies:"
-    echo "  Ubuntu/Debian: sudo apt install build-essential libgtk-3-dev libwebkit2gtk-4.1-dev"
+    echo "  Ubuntu/Debian (24.04+): sudo apt install build-essential libgtk-3-dev libwebkit2gtk-4.1-dev"
+    echo "  Ubuntu/Debian (22.04): sudo apt install build-essential libgtk-3-dev libwebkit2gtk-4.0-dev"
     echo "  Fedora: sudo dnf install gtk3-devel webkit2gtk3-devel"
     echo "  Arch: sudo pacman -S gtk3 webkit2gtk"
     echo ""
+    echo "For Ubuntu 24.04+, also create a symlink for Wails compatibility:"
+    echo "  sudo ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.1.pc /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.0.pc"
+    echo ""
     exit 1
 fi
+
+# Check if we need to create webkit2gtk symlink for Ubuntu 24.04+
+if pkg-config --exists webkit2gtk-4.1 && ! pkg-config --exists webkit2gtk-4.0; then
+    echo ""
+    echo "Detected WebKit2GTK 4.1 without 4.0 compatibility."
+    echo "Creating symlink for Wails compatibility..."
+    sudo ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.1.pc /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.0.pc
+    echo "Symlink created."
+    echo ""
+fi
+
 echo "GTK and WebKit2GTK found!"
 echo ""
 
@@ -125,11 +140,7 @@ echo "Building with Wails..."
 echo "This may take a few minutes..."
 echo ""
 
-# Set CGO flags for WebKit2GTK 4.1
-export CGO_CFLAGS="$(pkg-config --cflags gtk+-3.0 webkit2gtk-4.1)"
-export CGO_LDFLAGS="$(pkg-config --libs gtk+-3.0 webkit2gtk-4.1)"
-
-wails build -skipbindings -tags webkit2gtk_4_1
+wails build -skipbindings
 
 echo ""
 echo "============================================"

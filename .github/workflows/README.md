@@ -116,12 +116,13 @@ git push origin v3.2.0
 - Verify GTK3 and WebKit2GTK are available in Ubuntu repos
 - Check if `apt-get update` succeeded
 - Ubuntu 24.04+ requires `libwebkit2gtk-4.1-dev` (not 4.0)
+- If using Ubuntu 24.04+, ensure the webkit2gtk-4.0.pc symlink is created
 
 **Build fails at Wails:**
 - Ensure `gui/go.mod` and `gui/go.sum` are committed
 - Check Go version matches workflow (1.22)
-- Verify pkg-config can find gtk+-3.0 and webkit2gtk-4.1
-- Make sure build uses `-tags webkit2gtk_4_1` flag
+- Verify pkg-config can find webkit2gtk-4.0 (via symlink on Ubuntu 24.04+)
+- Check if symlink exists: `ls -la /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.0.pc`
 
 **Package not created:**
 - Verify `gui/build/bin/cs2-better-autodirector` exists after build

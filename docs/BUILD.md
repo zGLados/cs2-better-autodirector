@@ -54,6 +54,10 @@ Before building, make sure you have installed:
    # Ubuntu/Debian (24.04+)
    sudo apt install build-essential libgtk-3-dev libwebkit2gtk-4.1-dev
    
+   # Create symlink for Wails compatibility (Wails expects 4.0, Ubuntu 24.04 has 4.1)
+   sudo ln -sf /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.1.pc \
+               /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.0.pc
+   
    # Ubuntu/Debian (22.04 and older)
    sudo apt install build-essential libgtk-3-dev libwebkit2gtk-4.0-dev
    
@@ -123,28 +127,16 @@ chmod +x ./scripts/build.sh
 
 ```bash
 cd gui
-
-# Set CGO flags for WebKit2GTK 4.1 (Ubuntu 24.04+)
-export CGO_CFLAGS="$(pkg-config --cflags gtk+-3.0 webkit2gtk-4.1)"
-export CGO_LDFLAGS="$(pkg-config --libs gtk+-3.0 webkit2gtk-4.1)"
-
-wails build -tags webkit2gtk_4_1
+wails build
 ```
 
 The executable will be created in `gui/build/bin/cs2-better-autodirector`
-
-**Note:** Ubuntu 24.04+ uses WebKit2GTK 4.1. Older versions (22.04) use 4.0 and don't need the CGO flags.
 
 **Method 3: Skip Frontend Bindings (Faster)**
 
 ```bash
 cd gui
-
-# Set CGO flags for WebKit2GTK 4.1
-export CGO_CFLAGS="$(pkg-config --cflags gtk+-3.0 webkit2gtk-4.1)"
-export CGO_LDFLAGS="$(pkg-config --libs gtk+-3.0 webkit2gtk-4.1)"
-
-wails build -skipbindings -tags webkit2gtk_4_1
+wails build -skipbindings
 ```
 
 **Method 4: Development Mode (with hot-reload)**
