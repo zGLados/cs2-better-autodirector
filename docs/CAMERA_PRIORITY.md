@@ -254,10 +254,9 @@ Faster switching ensures all remaining players get camera time in critical momen
 
 ---
 
-### 2. **Dead Player Prevention**
+### 2. **Dead Player Handling**
 
-Before every switch, verify the target player is still alive:
-
+**Prevention (Before Switch):**
 ```go
 if target player is DEAD {
     Skip this switch
@@ -265,10 +264,7 @@ if target player is DEAD {
 }
 ```
 
-### 2. **Dead Player Detection**
-
-Currently spectated player dies:
-
+**Detection (Current Player Dies):**
 ```go
 if currently spectated player not in alive players {
     Bypass rate limiting

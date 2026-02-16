@@ -53,50 +53,17 @@ See [docs/BUILD.md](docs/BUILD.md) for detailed build instructions.
 
 ```
 cs2-better-autodirector/
-├── 📄 README.md                     # This file
-├── 📄 CHANGELOG.md                  # Version history
-│
-├── 📁 gui/                          # Wails GUI Application Source
-│   ├── 📄 main.go                   # Entry point (GUI + CLI mode)
-│   ├── 📄 app.go                    # GUI backend bindings
-│   ├── 📄 gsi_server.go             # Game State Integration Server
-│   ├── 📄 player_analyzer.go        # Encounter detection AI
-│   ├── 📄 spectator_controller.go   # Keyboard simulation
-│   ├── 📄 logger.go                 # Logging system
-│   ├── 📄 wails.json                # Wails configuration
-│   │
-│   ├── 📁 frontend/                 # Dashboard UI
-│   │   ├── 📁 src/
-│   │   │   ├── main.js              # Frontend logic
-│   │   │   ├── dashboard.css        # Dashboard styling
-│   │   │   └── app.css              # Base styles
-│   │   └── 📁 wailsjs/              # Generated bindings
-│   │
-│   └── 📁 build/                    # Build output
-│       └── 📁 bin/
-│           └── cs2-better-autodirector.exe
-│
-├── 📁 config/                       # Configuration files
-│   ├── gamestate_integration_autodirector.cfg
-│   └── spectator_bindings.cfg
-│
-├── 📁 scripts/                      # Build & installer scripts
-│   ├── build-installer.ps1          # Build installer (automated)
-│   ├── build-installer.bat          # Build installer (batch wrapper)
-│   ├── installer.iss                # Inno Setup script
-│   ├── install-innosetup.ps1        # Auto-install Inno Setup
-│   └── install-nodejs.ps1           # Auto-install Node.js
-│
-├── 📁 build/                        # Installer output
-│   └── CS2BetterAutoDirector-Setup.exe
-│
-├── 📁 docs/                         # Documentation
-│   ├── BUILD.md                     # Build & installer instructions
-│   └── CAMERA_PRIORITY.md           # Priority system docs
-│
-└── 📁 logs/                         # Runtime logs (auto-created)
-    └── autodirector_[timestamp].log
+├── gui/                            # Wails application (Go + Frontend)
+│   ├── main.go                     # Entry point (GUI + CLI mode)
+│   ├── frontend/                   # Dashboard UI (HTML/CSS/JS)
+│   └── build/bin/                  # Compiled executable
+├── config/                         # CS2 config files (GSI & bindings)
+├── scripts/                        # Build & installer automation
+├── docs/                           # Documentation (BUILD.md, CAMERA_PRIORITY.md)
+└── logs/                           # Runtime logs (auto-created)
 ```
+
+See [docs/BUILD.md](docs/BUILD.md) for detailed project structure and build instructions.
 
 ---
 
@@ -168,73 +135,30 @@ cs2-better-autodirector/
 
 ### Method 1: Windows Installer (Recommended)
 
-Download and run `CS2BetterAutoDirector-Setup.exe` for a professional installation experience:
+**[Download from GitHub Releases](https://github.com/zGLados/cs2-better-autodirector/releases/latest)**
 
-**Features:**
-- ✅ One-click installation
-- ✅ Automatic CS2 config detection (via Steam registry)
-- ✅ Optional automatic config file copy to CS2 folder
-- ✅ Start Menu shortcuts and optional Desktop icon
-- ✅ Choose between user-only or system-wide installation
-- ✅ Auto-elevates with admin rights when installed to Program Files
-- ✅ Clean uninstallation (removes all files including logs)
+Run `CS2BetterAutoDirector-Setup.exe` for:
+- ✅ One-click installation with CS2 auto-detection
+- ✅ Automatic config copy to CS2 folder
+- ✅ Start Menu shortcuts
+- ✅ Choose: User-only (no admin) or System-wide (admin)
 
-**Installation Options:**
-- **Install for me only**: Installs to `%LOCALAPPDATA%\Programs\CS2BetterAutoDirector` (no admin required)
-- **Install for all users**: Installs to `C:\Program Files\CS2BetterAutoDirector` (requires admin, app runs with admin rights)
-
-**Get the Installer:**
-1. **Download from GitHub Releases**: [Latest Release](https://github.com/zGLados/cs2-better-autodirector/releases/latest)
-2. **Build locally**:
-   ```cmd
-   cd scripts
-   build-installer.bat
-   ```
-   The installer will be created in the `build/` folder.
-3. **Automated Builds (GitHub Actions)**:
-   - **Version tags** (`v3.1.0`): Automatic build → GitHub Release created
-   - **Manual trigger**: Actions → "Build Windows Installer" → Run workflow
-   - See [docs/BUILD.md](docs/BUILD.md#automated-builds-with-github-actions) for details
-
-**Silent/Automated Installation:**
-```cmd
-# Silent installation for current user
-CS2BetterAutoDirector-Setup.exe /VERYSILENT /CURRENTUSER
-
-# Silent installation for all users (requires admin)
-CS2BetterAutoDirector-Setup.exe /VERYSILENT /ALLUSERS
-
-# Custom installation directory
-CS2BetterAutoDirector-Setup.exe /VERYSILENT /DIR="D:\Games\CS2AutoDirector"
-```
-
-For complete command-line options and deployment scripts, see [docs/BUILD.md](docs/BUILD.md#command-line-installation-silentunattended).
+See [docs/BUILD.md](docs/BUILD.md) for silent installation, command-line options, and building the installer locally.
 
 ### Method 2: Portable EXE
 
-Download `cs2-better-autodirector.exe` and run it directly:
-- No installation required
-- Single .exe file (~12 MB)
-- Manually copy config files to CS2 folder (see below)
+Download `cs2-better-autodirector.exe` from releases and run directly (no installation needed).
 
 ### Method 3: Build from Source
 
-For building from source, see [docs/BUILD.md](docs/BUILD.md) for detailed instructions.
+```cmd
+cd gui
+wails build -skipbindings
+```
 
-**Quick version:**
+Requires: [Go 1.22+](https://go.dev/dl/), [Node.js 20+](https://nodejs.org/), [Wails CLI](https://wails.io)
 
-1. **Install dependencies:**
-   - [Go 1.21+](https://go.dev/dl/)
-   - [Node.js 20+](https://nodejs.org/)
-   - [Wails](https://wails.io/docs/gettingstarted/installation)
-
-2. **Build:**
-   ```cmd
-   cd gui
-   wails build -skipbindings
-   ```
-
-3. **Done!** The executable will be in `gui/build/bin/cs2-better-autodirector.exe`
+See [docs/BUILD.md](docs/BUILD.md) for detailed build instructions.
 
 ---
 
