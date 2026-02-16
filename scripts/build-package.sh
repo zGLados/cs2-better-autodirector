@@ -47,7 +47,7 @@ chmod +x "$TEMP_DIR/cs2-better-autodirector"
 # Copy config files
 echo "Copying config files..."
 mkdir -p "$TEMP_DIR/config"
-cp "$ROOT_DIR/config/gamestate_integration_autoobserver.cfg" "$TEMP_DIR/config/"
+cp "$ROOT_DIR/config/gamestate_integration_autodirector.cfg" "$TEMP_DIR/config/"
 cp "$ROOT_DIR/config/spectator_bindings.cfg" "$TEMP_DIR/config/"
 
 # Copy documentation
@@ -108,7 +108,7 @@ echo "To run: $INSTALL_DIR/cs2-better-autodirector"
 echo "Or find it in your application menu."
 echo ""
 echo "Next steps:"
-echo "1. Copy config/gamestate_integration_autoobserver.cfg to:"
+echo "1. Copy config/gamestate_integration_autodirector.cfg to:"
 echo "   ~/.local/share/Steam/steamapps/common/Counter-Strike Global Offensive/game/csgo/cfg/"
 echo ""
 echo "2. Copy config/spectator_bindings.cfg to your CS2 cfg folder"
@@ -170,7 +170,7 @@ Manual Installation:
 3. Run: ./cs2-better-autodirector
 
 Configuration Files:
-- config/gamestate_integration_autoobserver.cfg
+- config/gamestate_integration_autodirector.cfg
   → Copy to: ~/.local/share/Steam/steamapps/common/Counter-Strike Global Offensive/game/csgo/cfg/
 
 - config/spectator_bindings.cfg

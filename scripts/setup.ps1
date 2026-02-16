@@ -169,8 +169,8 @@ if ($csConfigPath) {
     Write-Host "Copying configuration files..."
     
     try {
-        Copy-Item "config\gamestate_integration_autoobserver.cfg" -Destination $csConfigPath -Force
-        Write-Host "✓ gamestate_integration_autoobserver.cfg copied" -ForegroundColor Green
+        Copy-Item "config\gamestate_integration_autodirector.cfg" -Destination $csConfigPath -Force
+        Write-Host "✓ gamestate_integration_autodirector.cfg copied" -ForegroundColor Green
         
         Copy-Item "config\spectator_bindings.cfg" -Destination $csConfigPath -Force
         Write-Host "✓ spectator_bindings.cfg copied" -ForegroundColor Green
@@ -186,7 +186,7 @@ if ($csConfigPath) {
         Write-Host "WARNING: Could not copy configs automatically." -ForegroundColor Yellow
         Write-Host "Please copy these files manually to:" -ForegroundColor Yellow
         Write-Host $csConfigPath
-        Write-Host "  - config\gamestate_integration_autoobserver.cfg"
+        Write-Host "  - config\gamestate_integration_autodirector.cfg"
         Write-Host "  - config\spectator_bindings.cfg"
     }
 } else {
@@ -194,7 +194,7 @@ if ($csConfigPath) {
     Write-Host ""
     Write-Host "Please copy these files manually to:" -ForegroundColor Yellow
     Write-Host "Steam\steamapps\common\Counter-Strike Global Offensive\game\csgo\cfg\"
-    Write-Host "  - config\gamestate_integration_autoobserver.cfg"
+    Write-Host "  - config\gamestate_integration_autodirector.cfg"
     Write-Host "  - config\spectator_bindings.cfg"
     Write-Host ""
     Write-Host "Then run in CS2 console:" -ForegroundColor Cyan
@@ -231,7 +231,7 @@ Write-Host ""
 
 if (-not $csConfigPath) {
     Write-Host "IMPORTANT:" -ForegroundColor Yellow
-    Write-Host "- Copy config\gamestate_integration_autoobserver.cfg to your CS cfg folder"
+    Write-Host "- Copy config\gamestate_integration_autodirector.cfg to your CS cfg folder"
 }
 
 Write-Host ""
