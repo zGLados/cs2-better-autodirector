@@ -37,3 +37,15 @@ export function GetSettings() {
 export function SaveSettings(arg1) {
     return window['go']['main']['App']['SaveSettings'](arg1);
 }
+
+export function ResetSettings() {
+    return window['go']['main']['App']['ResetSettings']();
+}
+
+export function ExportSettings() {
+    return window['go']['main']['App']['ExportSettings']();
+}
+
+export function ImportSettings() {
+    return window['go']['main']['App']['ImportSettings']();
+}

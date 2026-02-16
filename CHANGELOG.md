@@ -1,6 +1,21 @@
 # CS2 Better Auto Director - Changelog
 
-## Version 3.1.0 (Current) - Professional Installer
+## Version 0.2.1 (Current)
+
+### New Features
+- **Settings Import/Export**: Export and import camera priority settings as JSON files
+- Settings reset button now uses backend method for consistency
+
+### Changes
+- Documentation cleanup and optimization
+- Removed obsolete root Go files after Wails migration
+- Updated GitHub Actions workflow (builds only on tags)
+- Improved installer and build documentation
+- Installer default language set to English
+
+---
+
+## Version 0.1.0 - Professional Installer
 
 ### 🚀 Windows Installer Package
 
@@ -61,9 +76,6 @@
 - Added troubleshooting section
 - Added customization guide
 
----
-
-## Version 3.0.0 - GUI Edition
 
 ### 🎨 Major UI Update - Wails Dashboard
 
@@ -103,10 +115,6 @@ cs2-better-autodirector.exe -nogui -v # CLI with verbose logging
 - Same configuration files (gamestate_integration_autodirector.cfg)
 - Same port (3000) and GSI integration
 - All existing features work in both modes
-
----
-
-## Version 2.0.0
 
 ### 🎯 Major Features
 
@@ -157,10 +165,6 @@ cs2-better-autodirector.exe -nogui -v # CLI with verbose logging
 - Improved kill detection to ignore grenade/molotov kills
 - Better weapon type detection and filtering
 
----
-
-## Version 1.1.0
-
 ### New Features
 - **Verbose logging mode**: Use `-v` flag for detailed console output
 - **Log files**: Normal mode now writes detailed logs to `logs/` directory
@@ -199,8 +203,6 @@ cs2-better-autodirector.exe -nogui -v # CLI with verbose logging
 - Run with verbose mode: `run.bat -v` or `cs2-better-autodirector.exe -v`
 - Normal mode: `run.bat` or `cs2-better-autodirector.exe`
 - Check logs: `logs/autodirector_[timestamp].log`
-
-## Version 1.0.0
 
 ### Initial Release
 - Intelligent encounter prediction based on player distance

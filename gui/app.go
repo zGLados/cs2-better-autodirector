@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -306,4 +308,89 @@ func formatDuration(d time.Duration) string {
 	d -= m * time.Minute
 	s := d / time.Second
 	return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
+}
+
+// ExportSettings opens a save dialog and exports settings to a JSON file
+func (a *App) ExportSettings() error {
+	// Get current settings
+	settings := a.GetSettings()
+
+	// Open save dialog
+	filePath, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		DefaultFilename:      "cs2-autodirector-settings.json",
+		Title:                "Export Settings",
+		DefaultDirectory:     ".",
+		ShowHiddenFiles:      false,
+		CanCreateDirectories: true,
+		Filters: []runtime.FileFilter{
+			{DisplayName: "JSON Files (*.json)", Pattern: "*.json"},
+			{DisplayName: "All Files (*.*)", Pattern: "*.*"},
+		},
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if filePath == "" {
+		// User cancelled
+		return fmt.Errorf("cancelled")
+	}
+
+	// Marshal settings to JSON
+	data, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to serialize settings: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write settings file: %w", err)
+	}
+
+	LogInfo("Settings exported to: " + filePath)
+	return nil
+}
+
+// ImportSettings opens a file dialog and imports settings from a JSON file
+func (a *App) ImportSettings() error {
+	// Open file dialog
+	filePath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:            "Import Settings",
+		DefaultDirectory: ".",
+		ShowHiddenFiles:  false,
+		Filters: []runtime.FileFilter{
+			{DisplayName: "JSON Files (*.json)", Pattern: "*.json"},
+			{DisplayName: "All Files (*.*)", Pattern: "*.*"},
+		},
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if filePath == "" {
+		// User cancelled
+		return fmt.Errorf("cancelled")
+	}
+
+	// Read file
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read settings file: %w", err)
+	}
+
+	// Unmarshal JSON
+	var settings Settings
+	if err := json.Unmarshal(data, &settings); err != nil {
+		return fmt.Errorf("failed to parse settings file: %w", err)
+	}
+
+	// Save and apply settings
+	if err := a.SaveSettings(&settings); err != nil {
+		return fmt.Errorf("failed to apply settings: %w", err)
+	}
+
+	LogInfo("Settings imported from: " + filePath)
+	return nil
 }

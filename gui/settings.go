@@ -126,3 +126,8 @@ func loadSettingsFromFile() (*Settings, error) {
 
 	return &settings, nil
 }
+
+// ResetSettings resets settings to defaults
+func (a *App) ResetSettings() error {
+	return a.SaveSettings(NewDefaultSettings())
+}

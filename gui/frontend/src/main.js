@@ -2,7 +2,7 @@ import './style.css';
 import './app.css';
 import './dashboard.css';
 
-import { StartAutoDirector, StopAutoDirector, GetStatus, GetPlayers, GetEncounters, GetStatistics, GetSettings, SaveSettings } from '../wailsjs/go/main/App';
+import { StartAutoDirector, StopAutoDirector, GetStatus, GetPlayers, GetEncounters, GetStatistics, GetSettings, SaveSettings, ResetSettings, ExportSettings, ImportSettings } from '../wailsjs/go/main/App';
 import {EventsOn} from '../wailsjs/runtime/runtime';
 
 // Global state
@@ -560,8 +560,14 @@ function initSettings() {
 
                         <!-- Action Buttons -->
                         <div class="settings-actions">
-                            <button type="button" id="resetBtn" class="btn btn-danger">Reset to Defaults</button>
-                            <button type="submit" class="btn btn-success">💾 Save Settings</button>
+                            <div class="settings-actions-left">
+                                <button type="button" id="exportBtn" class="btn btn-secondary">📤 Export Settings</button>
+                                <button type="button" id="importBtn" class="btn btn-secondary">📥 Import Settings</button>
+                            </div>
+                            <div class="settings-actions-right">
+                                <button type="button" id="resetBtn" class="btn btn-danger">🔄 Reset to Defaults</button>
+                                <button type="submit" class="btn btn-success">💾 Save Settings</button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -630,28 +636,38 @@ function setupSettingsListeners() {
         }
     });
 
+    // Export Button
+    document.getElementById('exportBtn').addEventListener('click', async () => {
+        try {
+            await ExportSettings();
+            alert('✅ Settings exported successfully!');
+        } catch (err) {
+            if (!err.toString().includes('cancelled')) {
+                console.error('Failed to export settings:', err);
+                alert('Failed to export settings: ' + err);
+            }
+        }
+    });
+
+    // Import Button
+    document.getElementById('importBtn').addEventListener('click', async () => {
+        try {
+            await ImportSettings();
+            await loadSettings(); // Reload to show imported settings
+            alert('✅ Settings imported successfully!');
+        } catch (err) {
+            if (!err.toString().includes('cancelled')) {
+                console.error('Failed to import settings:', err);
+                alert('Failed to import settings: ' + err);
+            }
+        }
+    });
+
+    // Reset Button
     document.getElementById('resetBtn').addEventListener('click', async () => {
         if (confirm('Are you sure you want to reset all settings to defaults?')) {
-            // Create default settings
-            const defaults = {
-                awp_bonus: 30.0,
-                scout_bonus: 15.0,
-                ak47_bonus: 5.0,
-                damage_dealt_bonus: 40.0,
-                upset_victory_bonus: 150.0,
-                sniper_kill_bonus: 100.0,
-                damage_dealt_duration: 5,
-                upset_victory_duration: 8,
-                sniper_kill_duration: 5,
-                max_encounter_distance: 1500.0,
-                max_damage_dist_normal: 1500.0,
-                max_damage_dist_sniper: 3000.0,
-                min_health_loss: 20,
-                vertical_diff_threshold: 250.0,
-            };
-
             try {
-                await SaveSettings(defaults);
+                await ResetSettings();
                 await loadSettings(); // Reload to show defaults
                 alert('✅ Settings reset to defaults!');
             } catch (err) {

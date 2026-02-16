@@ -3,7 +3,7 @@
 
 [Setup]
 AppName=CS2 Better Auto Director
-AppVersion=1.0.0
+AppVersion=0.2.1
 AppPublisher=CS2 Better Auto Director
 DefaultDirName={autopf}\CS2BetterAutoDirector
 DefaultGroupName=CS2 Better Auto Director
@@ -17,6 +17,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequiredOverridesAllowed=dialog
 UninstallDisplayIcon={app}\cs2-better-autodirector.exe
+ShowLanguageDialog=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
