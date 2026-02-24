@@ -19,33 +19,45 @@
 
 ---
 
-## ⚡ Quick Start
+## ⚡ Quick Start (3 Schritte)
 
-### 🎨 Run with GUI (Recommended)
+### 1. Installation
 
-Simply double-click or run:
+**Windows Installer (empfohlen):**
+1. [Download CS2BetterAutoDirector-Setup.exe](https://github.com/zGLados/cs2-better-autodirector/releases/latest)
+2. Ausführen und Anweisungen folgen (kopiert Configs automatisch)
+
+**Oder Portable:**
+- Einfach `cs2-better-autodirector.exe` herunterladen und starten (keine Installation)
+- Configs manuell nach `Steam\...\csgo\cfg\` kopieren
+
+### 2. CS2 vorbereiten (einmalig pro Session)
+
+1. CS2 starten und einem Match als **Spectator** beitreten
+2. Console öffnen (`) und eingeben:
+   ```
+   exec spectator_bindings
+   ```
+3. Fertig! ✅
+
+### 3. Programm starten
+
+**GUI starten:**
 ```cmd
 cs2-better-autodirector.exe
 ```
-→ Opens a beautiful dashboard with live stats, player tables, encounters, and event logs!
+→ Dashboard öffnet sich
 
-### 💻 Run in CLI Mode (Terminal)
+**Im Dashboard:**
+1. Click **"Start Auto Director"** Button
+2. Das wars! Die Kamera wechselt automatisch zu spannenden Szenen
 
+**Oder CLI-Modus (ohne GUI):**
 ```cmd
-cs2-better-autodirector.exe -nogui       # CLI mode without GUI
-cs2-better-autodirector.exe -nogui -v    # CLI mode with verbose logging
+cs2-better-autodirector.exe -nogui
 ```
 
-### 🔨 Build from Source
-
-```cmd
-cd cs2-autodirector-gui
-wails build
-```
-
-Requires: [Go](https://go.dev/dl/) + [Node.js](https://nodejs.org/)
-
-See [docs/BUILD.md](docs/BUILD.md) for detailed build instructions.
+**Wichtig:** Der Toggle für Spectator-Tasten (F9 Standard) ist bereits in den Bindings konfiguriert.
 
 ---
 

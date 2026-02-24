@@ -1,5 +1,9 @@
 # 🎥 Camera Prioritization System
 
+> **📖 Developer Documentation**  
+> Diese Dokumentation erklärt die technischen Details des Camera-Priority-Systems.  
+> **Als normaler User musst du das nicht lesen** - das Programm funktioniert automatisch!
+
 This document explains how the **Better Auto Observer** intelligently selects which player to spectate based on a sophisticated priority system.
 
 ---
