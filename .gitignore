@@ -45,6 +45,10 @@ logs/
 # Test directory with diagnostic tools
 test/*
 
+# Secrets and API keys
+config/secrets.json
+secrets.json
+
 # Installer outputs
 Output/
 *.msi
