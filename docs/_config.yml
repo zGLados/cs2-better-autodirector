@@ -1,0 +1,6 @@
+theme: jekyll-theme-cayman
+title: CS2 Better Auto Director
+description: Intelligent automatic spectating system for Counter-Strike 2
+show_downloads: true
+github:
+  repository_url: https://github.com/zGLados/cs2-better-autodirector
