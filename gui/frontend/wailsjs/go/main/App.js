@@ -49,3 +49,35 @@ export function ExportSettings() {
 export function ImportSettings() {
     return window['go']['main']['App']['ImportSettings']();
 }
+
+export function InitFaceitClient(arg1) {
+    return window['go']['main']['App']['InitFaceitClient'](arg1);
+}
+
+export function FetchFaceitMatchData(arg1) {
+    return window['go']['main']['App']['FetchFaceitMatchData'](arg1);
+}
+
+export function GetLastMatchData() {
+    return window['go']['main']['App']['GetLastMatchData']();
+}
+
+export function GetGotvConnectCommand() {
+    return window['go']['main']['App']['GetGotvConnectCommand']();
+}
+
+export function GetFaceitAPIKey() {
+    return window['go']['main']['App']['GetFaceitAPIKey']();
+}
+
+export function SaveFaceitAPIKey(arg1) {
+    return window['go']['main']['App']['SaveFaceitAPIKey'](arg1);
+}
+
+export function GetSecrets() {
+    return window['go']['main']['App']['GetSecrets']();
+}
+
+export function SaveSecrets(arg1) {
+    return window['go']['main']['App']['SaveSecrets'](arg1);
+}
