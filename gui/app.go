@@ -15,12 +15,14 @@ import (
 type App struct {
 	ctx            context.Context
 	autoDirector   *AutoDirector
+	faceitClient   *FaceitClient
 	mu             sync.RWMutex
 	isRunning      bool
 	stats          *Statistics
 	lastEncounters []EncounterInfo
 	lastPlayers    []PlayerInfo
 	lastGameState  map[string]interface{}
+	lastMatchData  *FaceitMatchData
 }
 
 // Statistics holds runtime statistics
@@ -78,6 +80,17 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	LogInfo("GUI Started")
+	
+	// Load secrets and initialize FACEIT client if API key is present
+	secrets := LoadSecrets()
+	if secrets.FaceitAPIKey != "" && secrets.FaceitAPIKey != "YOUR_FACEIT_API_KEY_HERE" {
+		a.mu.Lock()
+		a.faceitClient = NewFaceitClient(secrets.FaceitAPIKey)
+		a.mu.Unlock()
+		LogInfo("FACEIT client initialized with API key from secrets.json")
+	} else {
+		LogInfo("No FACEIT API key found. Please configure config/secrets.json")
+	}
 }
 
 // StartAutoDirector starts the auto director system
@@ -394,3 +407,88 @@ func (a *App) ImportSettings() error {
 	LogInfo("Settings imported from: " + filePath)
 	return nil
 }
+
+// ========== FACEIT Integration ==========
+
+// InitFaceitClient initializes the FACEIT API client with the provided key
+func (a *App) InitFaceitClient(apiKey string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	
+	a.faceitClient = NewFaceitClient(apiKey)
+	LogInfo("FACEIT client initialized")
+}
+
+// GetFaceitAPIKey returns the current FACEIT API key from secrets
+func (a *App) GetFaceitAPIKey() string {
+	secrets := LoadSecrets()
+	return secrets.FaceitAPIKey
+}
+
+// SaveFaceitAPIKey saves the FACEIT API key to secrets file and initializes client
+func (a *App) SaveFaceitAPIKey(apiKey string) error {
+	secrets := LoadSecrets()
+	secrets.FaceitAPIKey = apiKey
+	
+	if err := saveSecretsToFile(secrets); err != nil {
+		return err
+	}
+	
+	// Initialize client with new key
+	a.InitFaceitClient(apiKey)
+	
+	return nil
+}
+
+// FetchFaceitMatchData fetches match data from a FACEIT match room URL
+func (a *App) FetchFaceitMatchData(matchRoomURL string) (*FaceitMatchData, error) {
+	a.mu.RLock()
+	if a.faceitClient == nil {
+		a.mu.RUnlock()
+		return nil, fmt.Errorf("FACEIT client not initialized. Please set API key first")
+	}
+	a.mu.RUnlock()
+	
+	LogInfo("Fetching FACEIT match data from URL: %s", matchRoomURL)
+	
+	matchData, err := a.faceitClient.GetMatchDataFromURL(matchRoomURL)
+	if err != nil {
+		LogInfo("Failed to fetch FACEIT match data: %v", err)
+		return nil, fmt.Errorf("failed to fetch match data: %w", err)
+	}
+	
+	// Store the match data
+	a.mu.Lock()
+	a.lastMatchData = matchData
+	a.mu.Unlock()
+	
+	// Emit event to frontend
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "faceit_match_updated", matchData)
+	}
+	
+	LogInfo("Successfully fetched match data: %s vs %s", matchData.Team1.Name, matchData.Team2.Name)
+	
+	return matchData, nil
+}
+
+// GetLastMatchData returns the last fetched FACEIT match data
+func (a *App) GetLastMatchData() *FaceitMatchData {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	
+	return a.lastMatchData
+}
+
+// GetGotvConnectCommand returns the formatted GOTV connect command
+func (a *App) GetGotvConnectCommand() string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	
+	if a.lastMatchData == nil || a.faceitClient == nil {
+		return "No match data available"
+	}
+	
+	return a.faceitClient.FormatGotvLink(a.lastMatchData.GotvLink)
+}
+
