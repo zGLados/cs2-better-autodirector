@@ -19,6 +19,12 @@ vendor/
 # Go workspace file
 go.work
 
+# Node/Frontend
+node_modules/
+gui/frontend/dist/
+gui/frontend/wailsjs/
+*.md5
+
 # IDE
 .vscode/
 .idea/
@@ -41,6 +47,10 @@ desktop.ini
 
 # Log directory
 logs/
+gui/logs/
+
+# Build artifacts
+gui/build/bin/
 
 # Test directory with diagnostic tools
 test/*
