@@ -10,6 +10,8 @@ let isRunning = false;
 let logs = [];
 const MAX_LOGS = 100;
 let currentPage = 'dashboard'; // Track current page
+let currentFaceitUrl = null; // Currently loaded FACEIT match URL
+let faceitUpdateInterval = null; // Interval for auto-updating FACEIT match data
 
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', () => {
@@ -24,7 +26,13 @@ function showPage(page) {
         initDashboard();
         setupEventListeners();
         startDataPolling();
+        // Resume FACEIT auto-update if we have a URL
+        if (currentFaceitUrl) {
+            startFaceitAutoUpdate();
+        }
     } else if (page === 'settings') {
+        // Stop FACEIT auto-update when leaving dashboard
+        stopFaceitAutoUpdate();
         initSettings();
         setupSettingsListeners();
     }
@@ -233,6 +241,15 @@ function setupEventListeners() {
                 const matchData = await FetchFaceitMatchData(url);
                 displayFaceitMatchData(matchData);
                 addLog('✅ FACEIT match data loaded successfully');
+                
+                // Save URL and start auto-update
+                currentFaceitUrl = url;
+                startFaceitAutoUpdate();
+                
+                // Warn if no GOTV link is available
+                if (!matchData.gotv_link || matchData.gotv_link === '') {
+                    addLog('⚠️ No GOTV link available - Only public tournament matches provide GOTV access');
+                }
             } catch (err) {
                 const errorMsg = err.toString();
                 if (errorMsg.includes('not initialized')) {
@@ -318,6 +335,41 @@ function setupWailsEvents() {
         displayFaceitMatchData(matchData);
         addLog(`🎯 FACEIT match updated: ${matchData.team1.name} vs ${matchData.team2.name}`);
     });
+}
+
+// FACEIT Auto-Update Functions
+function startFaceitAutoUpdate() {
+    // Clear any existing interval
+    stopFaceitAutoUpdate();
+    
+    if (!currentFaceitUrl) return;
+    
+    // Update every 5 seconds
+    faceitUpdateInterval = setInterval(async () => {
+        if (!currentFaceitUrl) {
+            stopFaceitAutoUpdate();
+            return;
+        }
+        
+        try {
+            const matchData = await FetchFaceitMatchData(currentFaceitUrl);
+            displayFaceitMatchData(matchData);
+            // Silently update, don't spam logs
+        } catch (err) {
+            console.error('Error auto-updating FACEIT data:', err);
+            // If error persists, stop auto-update
+            stopFaceitAutoUpdate();
+        }
+    }, 5000);
+    
+    addLog('🔄 FACEIT auto-update started (every 5 seconds)');
+}
+
+function stopFaceitAutoUpdate() {
+    if (faceitUpdateInterval) {
+        clearInterval(faceitUpdateInterval);
+        faceitUpdateInterval = null;
+    }
 }
 
 function updateControlButtons() {
@@ -514,7 +566,7 @@ function displayFaceitMatchData(matchData) {
     if (matchData.gotv_link && matchData.gotv_link !== '') {
         gotvInput.value = matchData.gotv_link;
     } else {
-        gotvInput.value = 'Not available (match might not be live yet)';
+        gotvInput.value = 'Not available - Only public tournament matches provide GOTV access';
     }
     
     // Update Match Status

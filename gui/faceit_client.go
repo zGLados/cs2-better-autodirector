@@ -117,6 +117,8 @@ func (fc *FaceitClient) getMatchDetails(matchID string) (*FaceitMatchData, error
 		Status      string `json:"status"`
 		StartedAt   int64  `json:"started_at"`
 		CompetitionName string `json:"competition_name"`
+		CompetitionType string `json:"competition_type"` // tournament, hub, matchmaking, etc.
+		OrganizerID string `json:"organizer_id"`         // FACEIT ID for official tournaments
 		Game        string `json:"game"`
 		DemoURL     []string `json:"demo_url"`
 		Teams       map[string]struct {
@@ -145,25 +147,23 @@ func (fc *FaceitClient) getMatchDetails(matchID string) (*FaceitMatchData, error
 	}
 	
 	// Extract team data (FACEIT API returns teams in "faction1" and "faction2")
-	teamIndex := 0
-	for faction, team := range apiResponse.Teams {
-		teamData := FaceitTeamData{
-			Name:   team.Name,
-			Logo:   team.Avatar,
-			TeamID: faction,
+	// Always assign faction1 to Team1 and faction2 to Team2 for stable ordering
+	if team1, ok := apiResponse.Teams["faction1"]; ok {
+		matchData.Team1 = FaceitTeamData{
+			Name:   team1.Name,
+			Logo:   team1.Avatar,
+			TeamID: "faction1",
+			Score:  apiResponse.Results.Score["faction1"],
 		}
-		
-		// Get score if available
-		if score, ok := apiResponse.Results.Score[faction]; ok {
-			teamData.Score = score
+	}
+	
+	if team2, ok := apiResponse.Teams["faction2"]; ok {
+		matchData.Team2 = FaceitTeamData{
+			Name:   team2.Name,
+			Logo:   team2.Avatar,
+			TeamID: "faction2",
+			Score:  apiResponse.Results.Score["faction2"],
 		}
-		
-		if teamIndex == 0 {
-			matchData.Team1 = teamData
-		} else {
-			matchData.Team2 = teamData
-		}
-		teamIndex++
 	}
 	
 	// Extract GOTV link from demo URLs
@@ -177,7 +177,15 @@ func (fc *FaceitClient) getMatchDetails(matchID string) (*FaceitMatchData, error
 		serverInfo, err := fc.getMatchServerInfo(matchID)
 		if err != nil {
 			LogDebug("Could not fetch server info: %v", err)
-			matchData.GotvLink = "Not available (match might not be live yet)"
+			
+			// Check if this is a tournament/official match
+			isTournament := fc.isTournamentMatch(apiResponse.CompetitionName, apiResponse.CompetitionType, apiResponse.OrganizerID)
+			
+			if isTournament {
+				matchData.GotvLink = "Not available yet (check back when match is live)"
+			} else {
+				matchData.GotvLink = "Not available - Only public tournament matches provide GOTV access"
+			}
 		} else {
 			matchData.GotvLink = serverInfo
 		}
@@ -201,6 +209,54 @@ func (fc *FaceitClient) getMatchServerInfo(matchID string) (string, error) {
 	// - Or fetch from the match room HTML page
 	
 	return "", fmt.Errorf("server info not available via API yet")
+}
+
+// isTournamentMatch checks if a match is an official tournament based on available indicators
+func (fc *FaceitClient) isTournamentMatch(competitionName, competitionType, organizerID string) bool {
+	// If there's an organizer ID, it's likely an official tournament
+	if organizerID != "" {
+		return true
+	}
+	
+	// Check competition type
+	tournamentTypes := []string{"tournament", "championship", "league", "qualifier", "major"}
+	competitionTypeLower := strings.ToLower(competitionType)
+	for _, tt := range tournamentTypes {
+		if strings.Contains(competitionTypeLower, tt) {
+			return true
+		}
+	}
+	
+	// Check competition name for tournament indicators
+	if competitionName == "" {
+		return false // No competition = regular match
+	}
+	
+	competitionLower := strings.ToLower(competitionName)
+	
+	// These are typical non-tournament competition names
+	nonTournamentNames := []string{"matchmaking", "5v5", "ranked", "unranked", "casual", "pug"}
+	for _, nt := range nonTournamentNames {
+		if strings.Contains(competitionLower, nt) {
+			return false
+		}
+	}
+	
+	// Known tournament/league indicators
+	tournamentIndicators := []string{
+		"major", "qualifier", "rmr", "esl", "blast", "iem", "pgl",
+		"championship", "league", "cup", "open", "fpl", "faceit pro",
+		"esea", "esportal", "dreamhack", "eleague",
+	}
+	
+	for _, indicator := range tournamentIndicators {
+		if strings.Contains(competitionLower, indicator) {
+			return true
+		}
+	}
+	
+	// If we have a proper competition name but no negative indicators, assume it's a tournament
+	return len(competitionName) > 0
 }
 
 // FormatGotvLink formats the GOTV link for CS2 console

@@ -14,6 +14,30 @@ The FACEIT integration allows you to automatically fetch match data from FACEIT 
 
 ---
 
+## ⚠️ Limitations
+
+### GOTV Availability
+
+**GOTV/CSTV is only available for official tournament matches:**
+
+- ✅ **Official FACEIT Tournaments** - Major qualifiers, RMR events, FACEIT Pro League
+- ✅ **ESEA League Matches** - Official league games
+- ✅ **Public Competition Servers** - Tournaments with publicly configured servers
+
+- ❌ **Regular FACEIT Matches** - Normal queue games (Premium, Free, 5v5)
+- ❌ **Private Matches** - Community or custom games
+- ❌ **Pugs/Hubs** - Most hub matches don't provide GOTV
+
+**Why this limitation?**  
+Regular FACEIT matches run on FACEIT's anti-cheat servers which don't expose public GOTV access for security reasons. Only official tournament infrastructure provides GOTV streams.
+
+**Workaround for non-tournament matches:**  
+- You can still fetch team data, logos, and scores from the API
+- Watch the match via FACEIT's web interface instead of GOTV
+- The Auto Director is designed for tournament/broadcast scenarios
+
+---
+
 ## 🔧 Setup
 
 ### 1. Get FACEIT API Key
