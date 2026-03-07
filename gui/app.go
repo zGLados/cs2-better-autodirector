@@ -80,7 +80,7 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	LogInfo("GUI Started")
-	
+
 	// Load secrets and initialize FACEIT client if API key is present
 	secrets := LoadSecrets()
 	if secrets.FaceitAPIKey != "" && secrets.FaceitAPIKey != "YOUR_FACEIT_API_KEY_HERE" {
@@ -414,7 +414,7 @@ func (a *App) ImportSettings() error {
 func (a *App) InitFaceitClient(apiKey string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	
+
 	a.faceitClient = NewFaceitClient(apiKey)
 	LogInfo("FACEIT client initialized")
 }
@@ -429,14 +429,14 @@ func (a *App) GetFaceitAPIKey() string {
 func (a *App) SaveFaceitAPIKey(apiKey string) error {
 	secrets := LoadSecrets()
 	secrets.FaceitAPIKey = apiKey
-	
+
 	if err := saveSecretsToFile(secrets); err != nil {
 		return err
 	}
-	
+
 	// Initialize client with new key
 	a.InitFaceitClient(apiKey)
-	
+
 	return nil
 }
 
@@ -448,27 +448,27 @@ func (a *App) FetchFaceitMatchData(matchRoomURL string) (*FaceitMatchData, error
 		return nil, fmt.Errorf("FACEIT client not initialized. Please set API key first")
 	}
 	a.mu.RUnlock()
-	
+
 	LogInfo("Fetching FACEIT match data from URL: %s", matchRoomURL)
-	
+
 	matchData, err := a.faceitClient.GetMatchDataFromURL(matchRoomURL)
 	if err != nil {
 		LogInfo("Failed to fetch FACEIT match data: %v", err)
 		return nil, fmt.Errorf("failed to fetch match data: %w", err)
 	}
-	
+
 	// Store the match data
 	a.mu.Lock()
 	a.lastMatchData = matchData
 	a.mu.Unlock()
-	
+
 	// Emit event to frontend
 	if a.ctx != nil {
 		runtime.EventsEmit(a.ctx, "faceit_match_updated", matchData)
 	}
-	
+
 	LogInfo("Successfully fetched match data: %s vs %s", matchData.Team1.Name, matchData.Team2.Name)
-	
+
 	return matchData, nil
 }
 
@@ -476,7 +476,7 @@ func (a *App) FetchFaceitMatchData(matchRoomURL string) (*FaceitMatchData, error
 func (a *App) GetLastMatchData() *FaceitMatchData {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	
+
 	return a.lastMatchData
 }
 
@@ -484,11 +484,101 @@ func (a *App) GetLastMatchData() *FaceitMatchData {
 func (a *App) GetGotvConnectCommand() string {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	
+
 	if a.lastMatchData == nil || a.faceitClient == nil {
 		return "No match data available"
 	}
-	
+
 	return a.faceitClient.FormatGotvLink(a.lastMatchData.GotvLink)
 }
 
+// SendToOpenHud sends FACEIT match data to OpenHud
+func (a *App) SendToOpenHud() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.lastMatchData == nil {
+		return fmt.Errorf("no FACEIT match data available. Fetch match data first")
+	}
+
+	if a.faceitClient == nil {
+		return fmt.Errorf("FACEIT client not initialized")
+	}
+
+	// Initialize OpenHud client
+	openHudClient := NewOpenHudClient("http://localhost:1349")
+
+	// Check if OpenHud is running
+	if err := openHudClient.CheckConnection(); err != nil {
+		return fmt.Errorf("OpenHud not reachable: %w. Make sure OpenHud is running", err)
+	}
+
+	LogInfo("Sending match data to OpenHud...")
+
+	// Process Team 1
+	team1ID, err := a.processTeamForOpenHud(openHudClient, &a.lastMatchData.Team1)
+	if err != nil {
+		return fmt.Errorf("failed to process Team 1: %w", err)
+	}
+
+	// Process Team 2
+	team2ID, err := a.processTeamForOpenHud(openHudClient, &a.lastMatchData.Team2)
+	if err != nil {
+		return fmt.Errorf("failed to process Team 2: %w", err)
+	}
+
+	// Create match in OpenHud
+	match, err := openHudClient.CreateMatch(team1ID, team2ID)
+	if err != nil {
+		return fmt.Errorf("failed to create match: %w", err)
+	}
+
+	// Set as current match
+	if err := openHudClient.SetCurrentMatch(match.ID); err != nil {
+		return fmt.Errorf("failed to set current match: %w", err)
+	}
+
+	LogInfo("✅ Successfully sent match to OpenHud!")
+	LogInfo("   Match ID: %s", match.ID)
+	LogInfo("   Teams: %s vs %s", a.lastMatchData.Team1.Name, a.lastMatchData.Team2.Name)
+
+	return nil
+}
+
+// processTeamForOpenHud handles team creation/update in OpenHud including logo download
+func (a *App) processTeamForOpenHud(client *OpenHudClient, teamData *FaceitTeamData) (string, error) {
+	// Check if team already exists in OpenHud
+	existingTeam, err := client.FindTeamByName(teamData.Name)
+	if err != nil {
+		return "", fmt.Errorf("failed to check existing teams: %w", err)
+	}
+
+	// Download team logo from FACEIT
+	var logoPath string
+	if teamData.Logo != "" {
+		downloadedPath, err := a.faceitClient.DownloadTeamLogo(teamData.Logo, teamData.Name)
+		if err != nil {
+			LogInfo("Warning: Failed to download logo for %s: %v", teamData.Name, err)
+		} else {
+			logoPath = downloadedPath
+		}
+	}
+
+	// If team exists, update it
+	if existingTeam != nil {
+		LogInfo("Team '%s' already exists in OpenHud, updating...", teamData.Name)
+		if err := client.UpdateTeam(existingTeam.ID, teamData.Name, "", teamData.Name, logoPath); err != nil {
+			return "", fmt.Errorf("failed to update team: %w", err)
+		}
+		return existingTeam.ID, nil
+	}
+
+	// Create new team
+	LogInfo("Creating team '%s' in OpenHud...", teamData.Name)
+	team, err := client.CreateTeam(teamData.Name, "", teamData.Name, logoPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create team: %w", err)
+	}
+
+	return team.ID, nil
+}

@@ -2,7 +2,7 @@ import './style.css';
 import './app.css';
 import './dashboard.css';
 
-import { StartAutoDirector, StopAutoDirector, GetStatus, GetPlayers, GetEncounters, GetStatistics, GetSettings, SaveSettings, ResetSettings, ExportSettings, ImportSettings, InitFaceitClient, FetchFaceitMatchData, GetGotvConnectCommand, GetFaceitAPIKey, SaveFaceitAPIKey } from '../wailsjs/go/main/App';
+import { StartAutoDirector, StopAutoDirector, GetStatus, GetPlayers, GetEncounters, GetStatistics, GetSettings, SaveSettings, ResetSettings, ExportSettings, ImportSettings, InitFaceitClient, FetchFaceitMatchData, GetGotvConnectCommand, GetFaceitAPIKey, SaveFaceitAPIKey, SendToOpenHud } from '../wailsjs/go/main/App';
 import {EventsOn} from '../wailsjs/runtime/runtime';
 
 // Global state
@@ -104,6 +104,15 @@ function initDashboard() {
                     <div style="margin-top: 10px; padding: 10px; background: rgba(255,85,0,0.1); border-radius: 5px; font-size: 12px; color: #ff5500;">
                         <strong>📌 Competition:</strong> <span id="matchCompetition">-</span> | 
                         <strong>Match ID:</strong> <span id="matchId">-</span>
+                    </div>
+                    <!-- Send to OpenHud Button -->
+                    <div style="margin-top: 15px; text-align: center;">
+                        <button id="sendToOpenHudBtn" class="btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                            🚀 Send to OpenHud
+                        </button>
+                        <div style="font-size: 11px; color: #888; margin-top: 8px;">
+                            Make sure OpenHud is running on localhost:1349
+                        </div>
                     </div>
                 </div>
             </div>
@@ -268,6 +277,41 @@ function setupEventListeners() {
         faceitUrlInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 fetchFaceitBtn.click();
+            }
+        });
+    }
+
+    // Send to OpenHud Button
+    const sendToOpenHudBtn = document.getElementById('sendToOpenHudBtn');
+    if (sendToOpenHudBtn) {
+        sendToOpenHudBtn.addEventListener('click', async () => {
+            sendToOpenHudBtn.disabled = true;
+            sendToOpenHudBtn.textContent = '⏳ Sending...';
+            
+            try {
+                await SendToOpenHud();
+                addLog('✅ Match data successfully sent to OpenHud!');
+                addLog('   Teams and match created in OpenHud');
+                
+                // Visual feedback
+                sendToOpenHudBtn.style.background = 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)';
+                sendToOpenHudBtn.textContent = '✓ Sent to OpenHud';
+                
+                setTimeout(() => {
+                    sendToOpenHudBtn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                    sendToOpenHudBtn.textContent = '🚀 Send to OpenHud';
+                    sendToOpenHudBtn.disabled = false;
+                }, 3000);
+            } catch (err) {
+                addLog(`❌ Failed to send to OpenHud: ${err}`);
+                console.error(err);
+                sendToOpenHudBtn.disabled = false;
+                sendToOpenHudBtn.textContent = '🚀 Send to OpenHud';
+                
+                // Check if error is about OpenHud not running
+                if (err.toString().includes('not reachable')) {
+                    addLog('⚠️ Make sure OpenHud is running on localhost:1349');
+                }
             }
         });
     }
