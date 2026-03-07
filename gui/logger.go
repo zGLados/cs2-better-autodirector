@@ -25,13 +25,15 @@ func InitLogging(verbose bool) error {
 	VerboseMode = verbose
 
 	// Create logs directory if it doesn't exist
-	if err := os.MkdirAll("logs", 0755); err != nil {
+	projectRoot := getProjectRoot()
+	logsDir := filepath.Join(projectRoot, "logs")
+	if err := os.MkdirAll(logsDir, 0755); err != nil {
 		return fmt.Errorf("failed to create logs directory: %v", err)
 	}
 
 	// Create log file with timestamp (always)
 	timestamp := time.Now().Format("2006-01-02_15-04-05")
-	logFileName := filepath.Join("logs", fmt.Sprintf("autodirector_%s.log", timestamp))
+	logFileName := filepath.Join(logsDir, fmt.Sprintf("autodirector_%s.log", timestamp))
 
 	var err error
 	LogFile, err = os.Create(logFileName)

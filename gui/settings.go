@@ -6,6 +6,18 @@ import (
 	"path/filepath"
 )
 
+// getProjectRoot returns the project root directory
+// If running from gui/, it goes one level up
+func getProjectRoot() string {
+	// Check if we're in the gui/ subdirectory
+	if _, err := os.Stat("wails.json"); err == nil {
+		// We're in gui/, go one level up
+		return ".."
+	}
+	// We're already in project root
+	return "."
+}
+
 // Secrets holds sensitive data like API keys
 type Secrets struct {
 	FaceitAPIKey string `json:"faceit_api_key"` // FACEIT API Key
@@ -102,7 +114,8 @@ func LoadSettings() *Settings {
 
 // saveSettingsToFile saves settings to JSON file
 func saveSettingsToFile(settings *Settings) error {
-	configDir := filepath.Join(".", "config")
+	projectRoot := getProjectRoot()
+	configDir := filepath.Join(projectRoot, "config")
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		return err
 	}
@@ -118,7 +131,8 @@ func saveSettingsToFile(settings *Settings) error {
 
 // loadSettingsFromFile loads settings from JSON file
 func loadSettingsFromFile() (*Settings, error) {
-	filePath := filepath.Join(".", "config", "settings.json")
+	projectRoot := getProjectRoot()
+	filePath := filepath.Join(projectRoot, "config", "settings.json")
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
@@ -151,7 +165,8 @@ func LoadSecrets() *Secrets {
 
 // loadSecretsFromFile loads secrets from JSON file
 func loadSecretsFromFile() (*Secrets, error) {
-	filePath := filepath.Join(".", "config", "secrets.json")
+	projectRoot := getProjectRoot()
+	filePath := filepath.Join(projectRoot, "config", "secrets.json")
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
@@ -167,7 +182,8 @@ func loadSecretsFromFile() (*Secrets, error) {
 
 // saveSecretsToFile saves secrets to JSON file
 func saveSecretsToFile(secrets *Secrets) error {
-	configDir := filepath.Join(".", "config")
+	projectRoot := getProjectRoot()
+	configDir := filepath.Join(projectRoot, "config")
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		return err
 	}
