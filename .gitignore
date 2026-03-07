@@ -22,7 +22,6 @@ go.work
 # Node/Frontend
 node_modules/
 gui/frontend/dist/
-gui/frontend/wailsjs/
 *.md5
 
 # IDE
@@ -41,6 +40,9 @@ desktop.ini
 *.tmp
 *.log
 *.bak
+
+# Temp directory (logos, etc)
+temp/
 
 # Local shortcuts
 *.lnk
