@@ -17,7 +17,6 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequiredOverridesAllowed=dialog
 UninstallDisplayName=CS2 Better Auto Director
-UninstallDisplayVersion=0.3.0
 UninstallDisplayIcon={app}\cs2-better-autodirector.exe
 ShowLanguageDialog=no
 
