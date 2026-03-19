@@ -3,7 +3,7 @@
 
 [Setup]
 AppName=CS2 Better Auto Director
-AppVersion=0.2.3
+AppVersion=0.3.0
 AppPublisher=CS2 Better Auto Director
 DefaultDirName={autopf}\CS2BetterAutoDirector
 DefaultGroupName=CS2 Better Auto Director
@@ -16,6 +16,8 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequiredOverridesAllowed=dialog
+UninstallDisplayName=CS2 Better Auto Director
+UninstallDisplayVersion=0.3.0
 UninstallDisplayIcon={app}\cs2-better-autodirector.exe
 ShowLanguageDialog=no
 
@@ -30,6 +32,7 @@ Source: "..\gui\build\bin\cs2-better-autodirector.exe"; DestDir: "{app}"; Flags:
 ; Config files
 Source: "..\config\gamestate_integration_autodirector.cfg"; DestDir: "{app}\config"; Flags: ignoreversion
 Source: "..\config\spectator_bindings.cfg"; DestDir: "{app}\config"; Flags: ignoreversion
+Source: "..\config\secrets.example.json"; DestDir: "{app}\config"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\CS2 Better Auto Director"; Filename: "{app}\cs2-better-autodirector.exe"; WorkingDir: "{app}"
@@ -53,7 +56,9 @@ Type: filesandordirs; Name: "{app}"
 [Code]
 var
   CS2ConfigPage: TInputDirWizardPage;
+  FaceitAPIKeyPage: TInputQueryWizardPage;
   CS2ConfigPath: String;
+  FaceitAPIKey: String;
 
 function GetCS2ConfigPath(): String;
 var
@@ -108,6 +113,17 @@ begin
     CS2ConfigPage.Values[0] := DetectedPath
   else
     CS2ConfigPage.Values[0] := 'C:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive\game\csgo\cfg';
+  
+  // Create FACEIT API Key input page
+  FaceitAPIKeyPage := CreateInputQueryPage(CS2ConfigPage.ID,
+    'FACEIT API Configuration (Optional)',
+    'Enter your FACEIT API Key for tournament streaming features',
+    'If you want to use the FACEIT integration to stream tournament matches, enter your API key below.' + #13#10 + #13#10 +
+    'Get your API key from: https://developers.faceit.com/' + #13#10 + #13#10 +
+    'If you don''t have one or want to configure it later, leave this field empty.');
+  
+  FaceitAPIKeyPage.Add('FACEIT API Key:', False);
+  FaceitAPIKeyPage.Values[0] := '';
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
@@ -123,6 +139,9 @@ procedure CurStepChanged(CurStep: TSetupStep);
 var
   SourceFile: String;
   DestFile: String;
+  ConfigDir: String;
+  SecretsFile: String;
+  SecretsContent: TArrayOfString;
 begin
   if CurStep = ssPostInstall then
   begin
@@ -153,6 +172,34 @@ begin
                'Please manually copy:' + #13#10 +
                ExpandConstant('{app}\config\gamestate_integration_autodirector.cfg') + #13#10 + #13#10 +
                'To your CS2 config folder.',
+               mbError, MB_OK);
+      end;
+    end;
+    
+    // Create secrets.json if FACEIT API key was provided
+    FaceitAPIKey := Trim(FaceitAPIKeyPage.Values[0]);
+    if FaceitAPIKey <> '' then
+    begin
+      ConfigDir := ExpandConstant('{app}\config');
+      
+      // Create config directory if it doesn't exist
+      if not DirExists(ConfigDir) then
+        ForceDirectories(ConfigDir);
+      
+      SecretsFile := ConfigDir + '\secrets.json';
+      
+      // Create secrets.json content
+      SetArrayLength(SecretsContent, 3);
+      SecretsContent[0] := '{';
+      SecretsContent[1] := '  "faceit_api_key": "' + FaceitAPIKey + '"';
+      SecretsContent[2] := '}';
+      
+      // Save to file
+      if not SaveStringsToFile(SecretsFile, SecretsContent, False) then
+      begin
+        MsgBox('Failed to save FACEIT API key to config.' + #13#10 + 
+               'You can manually create the file:' + #13#10 + 
+               SecretsFile,
                mbError, MB_OK);
       end;
     end;
