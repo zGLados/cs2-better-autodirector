@@ -19,30 +19,30 @@
 
 ---
 
-## ⚡ Quick Start (3 Schritte)
+## ⚡ Quick Start (3 Steps)
 
 ### 1. Installation
 
-**Windows Installer (empfohlen):**
+**Windows Installer (recommended):**
 1. [Download CS2BetterAutoDirector-Setup.exe](https://github.com/zGLados/cs2-better-autodirector/releases/latest)
-2. Ausführen und Anweisungen folgen (kopiert Configs automatisch)
+2. Run and follow instructions (copies configs automatically)
 
-**Oder Portable:**
-- Einfach `cs2-better-autodirector.exe` herunterladen und starten (keine Installation)
-- Configs manuell nach `Steam\...\csgo\cfg\` kopieren
+**Or Portable:**
+- Just download `cs2-better-autodirector.exe` and run (no installation)
+- Copy configs manually to `Steam\...\csgo\cfg\`
 
-### 2. CS2 vorbereiten (einmalig pro Session)
+### 2. Prepare CS2 (once per session)
 
-1. CS2 starten und einem Match als **Spectator** beitreten
-2. Console öffnen (`) und eingeben:
+1. Start CS2 and join a match as a **spectator**
+2. Open console (`) and enter:
    ```
    exec spectator_bindings
    ```
-3. Fertig! ✅
+3. Done! ✅
 
-### 3. Programm starten
+### 3. Start Program
 
-**GUI starten:**
+**Start GUI:**
 ```cmd
 cs2-better-autodirector.exe
 ```
@@ -491,6 +491,12 @@ After making changes, simply recompile with `scripts\build.bat`.
 ### **"Switches not working" or "Switches only sometimes work"** ⚠️ IMPORTANT
 This is the **most common issue**. The switches are being triggered but not reaching CS2.
 
+**Diagnostic Step (Debug Mode):**
+If the program doesn't start or behaves unexpectedly, use the **Debug Mode**:
+1. Open your Start Menu.
+2. Search for **"CS2 Better Auto Director (Debug Mode)"**.
+3. This will launch the app with verbose logging. If the app crashes, a window will pop up showing the exact error message (e.g., "Access Denied" or "Port 8000 already in use").
+
 **Required conditions:**
 1. ✅ **CS2 window MUST be in FOREGROUND** (active/focused window)
    - Switches use keyboard simulation - only works on the active window
@@ -516,6 +522,8 @@ This is the **most common issue**. The switches are being triggered but not reac
 ```cmd
 # Run with verbose logging to see when switches are attempted
 cs2-better-autodirector.exe -v
+# Run with very verbose logging for raw data dumps
+cs2-better-autodirector.exe -vv
 ```
 
 Look for these messages:

@@ -7,8 +7,10 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 	"time"
+	"unsafe"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -19,24 +21,48 @@ import (
 var assets embed.FS
 
 func main() {
+	// Global panic recovery to show errors even if the GUI doesn't load
+	defer func() {
+		if r := recover(); r != nil {
+			errTitle := "Critical Error - CS2 Better Auto Director"
+			errMessage := fmt.Sprintf("The application crashed:\n\n%v\n\nStack trace:\n%s", r, debug.Stack())
+
+			// Print to console/file as well
+			fmt.Fprintf(os.Stderr, "%s: %s\n", errTitle, errMessage)
+
+			// On Windows, show a native message box so the user sees the error
+			if os.Getenv("OS") == "Windows_NT" {
+				showWindowsMessageBox(errTitle, errMessage)
+			}
+		}
+	}()
+
 	// Parse command line flags
 	nogui := flag.Bool("nogui", false, "Run in CLI mode without GUI")
 	verbose := flag.Bool("v", false, "Enable verbose logging")
+	veryVerbose := flag.Bool("vv", false, "Enable very verbose (trace) logging")
 	flag.Parse()
+
+	logLevel := 0
+	if *veryVerbose {
+		logLevel = 2
+	} else if *verbose {
+		logLevel = 1
+	}
 
 	if *nogui {
 		// Run in CLI mode (old behavior)
-		runCLI(*verbose)
+		runCLI(logLevel)
 	} else {
 		// Run in GUI mode (new Wails UI)
-		runGUI()
+		runGUI(logLevel)
 	}
 }
 
 // runGUI starts the application with Wails GUI
-func runGUI() {
-	// Initialize logging for GUI mode (non-verbose by default)
-	if err := InitLogging(false); err != nil {
+func runGUI(level int) {
+	// Initialize logging with current verbose flag
+	if err := InitLogging(level); err != nil {
 		fmt.Printf("Warning: Could not initialize logging: %v\n", err)
 	}
 	defer CloseLogging()
@@ -60,23 +86,31 @@ func runGUI() {
 	})
 
 	if err != nil {
-		fmt.Printf("\n=== ERROR ===\n")
-		fmt.Printf("Failed to start GUI: %v\n", err)
-		fmt.Printf("=============\n\n")
-		fmt.Printf("Possible solutions:\n")
-		fmt.Printf("1. Make sure WebView2 Runtime is installed\n")
-		fmt.Printf("   Download from: https://go.microsoft.com/fwlink/p/?LinkId=2124703\n")
-		fmt.Printf("2. Try running as Administrator\n")
-		fmt.Printf("3. Use CLI mode instead: cs2-better-autodirector.exe -nogui\n\n")
-		fmt.Println("Press Enter to exit...")
-		fmt.Scanln()
+		errMsg := fmt.Sprintf("Failed to start GUI: %v\n\nPossible solutions:\n1. Install WebView2 Runtime\n2. Run as Administrator\n3. Check logs in AppData", err)
+		if os.Getenv("OS") == "Windows_NT" {
+			showWindowsMessageBox("Startup Error", errMsg)
+		} else {
+			fmt.Println(errMsg)
+		}
 	}
 }
 
+// showWindowsMessageBox shows a native Windows error dialog without requiring any GUI toolkit
+func showWindowsMessageBox(title, message string) {
+	user32 := syscall.NewLazyDLL("user32.dll")
+	messageBox := user32.NewProc("MessageBoxW")
+
+	lpText, _ := syscall.UTF16PtrFromString(message)
+	lpCaption, _ := syscall.UTF16PtrFromString(title)
+
+	// MB_OK | MB_ICONERROR = 0x00000000 | 0x00000010
+	messageBox.Call(0, uintptr(unsafe.Pointer(lpText)), uintptr(unsafe.Pointer(lpCaption)), 0x00000010)
+}
+
 // runCLI starts the application in CLI mode
-func runCLI(verbose bool) {
+func runCLI(level int) {
 	// Initialize logging
-	if err := InitLogging(verbose); err != nil {
+	if err := InitLogging(level); err != nil {
 		fmt.Printf("Warning: Could not initialize logging: %v\n", err)
 	}
 	defer CloseLogging()

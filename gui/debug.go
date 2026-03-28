@@ -6,7 +6,7 @@ import (
 
 // DumpGameState prints the raw GSI data for debugging
 func DumpGameState(gameState map[string]interface{}) {
-	if !VerboseMode {
+	if LogLevel < 2 {
 		return
 	}
 

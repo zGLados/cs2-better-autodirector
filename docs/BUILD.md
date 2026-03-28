@@ -2,11 +2,11 @@
 
 ## Quick Start
 
-### 1. Requirements installieren
+### 1. Install Requirements
 
 **Windows:**
 ```powershell
-# Go (https://go.dev/dl/), Node.js (https://nodejs.org/), dann:
+# Go (https://go.dev/dl/), Node.js (https://nodejs.org/), then:
 go install github.com/wailsapp/wails/v2/cmd/wails@latest
 ```
 
@@ -16,9 +16,9 @@ sudo apt install golang nodejs npm build-essential libgtk-3-dev libwebkit2gtk-4.
 go install github.com/wailsapp/wails/v2/cmd/wails@latest
 ```
 
-### 2. Builden
+### 2. Build
 
-**App builden:**
+**Build App:**
 ```powershell
 # Windows:
 .\scripts\build.ps1
@@ -58,7 +58,7 @@ go install github.com/wailsapp/wails/v2/cmd/wails@latest
    go install github.com/wailsapp/wails/v2/cmd/wails@latest
    ```
 
-Restart terminal nach Installation.
+Restart terminal after installation.
 
 **Optional:**
 - **Inno Setup 6** (für Installer): https://jrsoftware.org/isdl.php
@@ -93,7 +93,7 @@ wails doctor
 
 ### Manual Build
 
-Ohne die Scripts zu verwenden:
+Without using the scripts:
 
 **Windows:**
 ```powershell
@@ -136,6 +136,7 @@ wails dev
 - ✅ User-only (kein Admin) oder system-wide Installation
 - ✅ Automatische CS2-Pfad-Erkennung (Steam Registry)
 - ✅ Auto-Copy von GSI-Config zum CS2-Ordner
+- ✅ Debug Mode Shortcut (startet mit `-v` für Fehlerdiagnose)
 - ✅ Start Menu Shortcuts + optionales Desktop Icon
 - ✅ Saubere Deinstallation
 - ✅ Multi-language (EN/DE)
@@ -253,8 +254,8 @@ Automatische Builds bei Version Tags.
 
 **Release erstellen:**
 ```bash
-git tag -a v0.2.3 -m "Version 0.2.3"
-git push origin v0.2.3
+git tag -a v0.3.1 -m "Version 0.3.1"
+git push origin v0.3.1
 # → Builds Windows + Linux, erstellt Release automatisch
 ```
 

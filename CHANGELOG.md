@@ -1,8 +1,14 @@
 # CS2 Better Auto Director - Changelog
 
-## Version 0.2.3 (Current)
+## Version 0.3.1 (Current)
 
 ### New Features
+- **Debug Mode Launcher**: Added a dedicated "Debug Mode" shortcut in the Start Menu.
+- **Very Verbose Mode (`-vv`)**: Added a trace level for raw GSI data dumps.
+- **Panic Handler**: Added a native Windows error dialog that appears if the application crashes during startup.
+
+### Fixes
+- **Permission Fix**: Moved configuration and log files to `%APPDATA%`. This fixes the issue where the application wouldn't start after being installed to `C:\Program Files`.
 - **Settings Import/Export**: Export and import camera priority settings as JSON files
 - Settings reset button now uses backend method for consistency
 

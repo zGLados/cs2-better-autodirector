@@ -18,6 +18,24 @@ func getProjectRoot() string {
 	return "."
 }
 
+// getConfigDir returns the directory where settings and logs should be stored.
+// It uses %APPDATA% on Windows to avoid permission issues in Program Files.
+func getConfigDir() string {
+	// If we are in development mode (wails.json exists), use project root
+	if _, err := os.Stat("wails.json"); err == nil {
+		return "."
+	}
+
+	// Use OS specific config directory (e.g., AppData/Roaming on Windows)
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "."
+	}
+	appConfigDir := filepath.Join(dir, "cs2-better-autodirector")
+	os.MkdirAll(appConfigDir, 0755)
+	return appConfigDir
+}
+
 // Secrets holds sensitive data like API keys
 type Secrets struct {
 	FaceitAPIKey string `json:"faceit_api_key"` // FACEIT API Key
@@ -114,8 +132,7 @@ func LoadSettings() *Settings {
 
 // saveSettingsToFile saves settings to JSON file
 func saveSettingsToFile(settings *Settings) error {
-	projectRoot := getProjectRoot()
-	configDir := filepath.Join(projectRoot, "config")
+	configDir := filepath.Join(getConfigDir(), "config")
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		return err
 	}
@@ -131,8 +148,7 @@ func saveSettingsToFile(settings *Settings) error {
 
 // loadSettingsFromFile loads settings from JSON file
 func loadSettingsFromFile() (*Settings, error) {
-	projectRoot := getProjectRoot()
-	filePath := filepath.Join(projectRoot, "config", "settings.json")
+	filePath := filepath.Join(getConfigDir(), "config", "settings.json")
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
@@ -165,8 +181,7 @@ func LoadSecrets() *Secrets {
 
 // loadSecretsFromFile loads secrets from JSON file
 func loadSecretsFromFile() (*Secrets, error) {
-	projectRoot := getProjectRoot()
-	filePath := filepath.Join(projectRoot, "config", "secrets.json")
+	filePath := filepath.Join(getConfigDir(), "config", "secrets.json")
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
@@ -182,8 +197,7 @@ func loadSecretsFromFile() (*Secrets, error) {
 
 // saveSecretsToFile saves secrets to JSON file
 func saveSecretsToFile(secrets *Secrets) error {
-	projectRoot := getProjectRoot()
-	configDir := filepath.Join(projectRoot, "config")
+	configDir := filepath.Join(getConfigDir(), "config")
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		return err
 	}

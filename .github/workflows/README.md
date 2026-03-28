@@ -1,4 +1,4 @@
-﻿# GitHub Actions Workflows
+﻿﻿# GitHub Actions Workflows
 
 Automated build pipelines for creating Windows installers and Linux packages on GitHub's servers.
 
@@ -57,12 +57,12 @@ Automated build pipelines for creating Windows installers and Linux packages on 
 ```bash
 # 1. Update version in code/docs, commit changes
 git add .
-git commit -m "Release v3.2.0"
+git commit -m "Release v0.3.1"
 git push origin dev
 
 # 2. Create and push tag
-git tag -a v3.2.0 -m "Version 3.2.0 - Description"
-git push origin v3.2.0
+git tag -a v0.3.1 -m "Version 0.3.1"
+git push origin v0.3.1
 
 # → Installer automatically attached to GitHub Release
 ```
