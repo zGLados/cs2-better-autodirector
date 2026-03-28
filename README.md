@@ -495,7 +495,7 @@ This is the **most common issue**. The switches are being triggered but not reac
 If the program doesn't start or behaves unexpectedly, use the **Debug Mode**:
 1. Open your Start Menu.
 2. Search for **"CS2 Better Auto Director (Debug Mode)"**.
-3. This will launch the app with verbose logging. If the app crashes, a window will pop up showing the exact error message (e.g., "Access Denied" or "Port 8000 already in use").
+3. This will launch the app with verbose logging and a console window. If the app crashes, a window will pop up showing the exact error. Logs are located in the app folder or `%APPDATA%`.
 
 **Required conditions:**
 1. ✅ **CS2 window MUST be in FOREGROUND** (active/focused window)

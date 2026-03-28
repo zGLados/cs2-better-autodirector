@@ -26,6 +26,18 @@ func getConfigDir() string {
 		return "."
 	}
 
+	// Check if the current executable directory is writable (e.g., Admin install or Portable mode)
+	if exePath, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exePath)
+		// Attempt to create a temporary test file to verify write permissions
+		testFile := filepath.Join(exeDir, ".permission_test")
+		if f, err := os.Create(testFile); err == nil {
+			f.Close()
+			os.Remove(testFile)
+			return exeDir
+		}
+	}
+
 	// Use OS specific config directory (e.g., AppData/Roaming on Windows)
 	dir, err := os.UserConfigDir()
 	if err != nil {

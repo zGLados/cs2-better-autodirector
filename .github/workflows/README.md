@@ -1,6 +1,6 @@
 ﻿﻿# GitHub Actions Workflows
 
-Automated build pipelines for creating Windows installers and Linux packages on GitHub's servers.
+Automated build pipelines for creating Windows installers on GitHub's servers.
 
 ## Workflow: `build-installer.yml`
 
@@ -27,29 +27,6 @@ Automated build pipelines for creating Windows installers and Linux packages on 
 - `cs2-better-autodirector.exe` (Portable, no installation needed)
 
 ---
-
-## Workflow: `build-linux.yml`
-
-**Platform:** Linux (Ubuntu)
-
-**Triggers:**
-- **Version tags** (`v*.*.*`): Builds package + creates GitHub Release
-- **Manual dispatch**: Actions → "Build Linux Package" → Run workflow
-
-**What it does:**
-1. Sets up Go 1.22 + Node.js 20 + Wails CLI
-2. Installs Linux dependencies (GTK3, WebKit2GTK)
-3. Builds GUI application (`wails build -skipbindings`)
-4. Creates tar.gz package with install scripts
-5. Uploads artifact (90 days retention)
-6. Creates GitHub Release (if triggered by tag)
-
-**Build time:** ~4-6 minutes
-
-**Output:** `CS2BetterAutoDirector-Linux-x64.tar.gz`
-
----
-
 ## Usage
 
 ### Create Release
@@ -75,26 +52,19 @@ git push origin v0.3.1
 3. Wait ~5-7 minutes
 4. Download from Artifacts section
 
-**Linux:**
-1. Go to: Repository → Actions → "Build Linux Package"
-2. Click "Run workflow" → Select branch → Run
-3. Wait ~4-6 minutes
-4. Download from Artifacts section
-
 ---
 
 ## Workflow Behavior
 
-| Trigger | Windows Build? | Linux Build? | Creates Release? |
-|---------|----------------|--------------|------------------|
-| Push to `dev` | ❌ No | ❌ No | ❌ No |
-| Pull Request | ❌ No | ❌ No | ❌ No |
-| Tag `v*.*.*` | ✅ Yes | ✅ Yes | ✅ Yes (both) |
-| Manual Run | ✅ Yes | ✅ Yes | ❌ No |
+| Trigger | Windows Build? | Creates Release? |
+|---------|----------------|------------------|
+| Push to `dev` | ❌ No | ❌ No |
+| Pull Request | ❌ No | ❌ No |
+| Tag `v*.*.*` | ✅ Yes | ✅ Yes |
+| Manual Run | ✅ Yes | ❌ No |
 
-**Note:** Builds only on tags to save GitHub Actions minutes. For local testing:
+**Note:** Builds only on tags to save GitHub Actions minutes. For local testing on Windows:
 - Windows: `.\scripts\build.ps1` or `.\scripts\build-installer.ps1`
-- Linux: `./scripts/build.sh` or `./scripts/build-package.sh`
 
 ---
 

@@ -31,9 +31,6 @@ go install github.com/wailsapp/wails/v2/cmd/wails@latest
 ```powershell
 # Windows Installer:
 .\scripts\build-installer.ps1
-
-# Linux Package (tar.gz):
-./scripts/build-package.sh
 ```
 
 ### 3. Fertig!

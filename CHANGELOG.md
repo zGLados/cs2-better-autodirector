@@ -8,7 +8,7 @@
 - **Panic Handler**: Added a native Windows error dialog that appears if the application crashes during startup.
 
 ### Fixes
-- **Permission Fix**: Moved configuration and log files to `%APPDATA%`. This fixes the issue where the application wouldn't start after being installed to `C:\Program Files`.
+- **Smart Storage Logic**: App now detects if it can write to its own folder (Admin/Portable mode). If not, it safely falls back to `%APPDATA%`. This ensures logs and settings are always accessible.
 - **Settings Import/Export**: Export and import camera priority settings as JSON files
 - Settings reset button now uses backend method for consistency
 

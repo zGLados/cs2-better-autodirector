@@ -50,6 +50,11 @@ func main() {
 		logLevel = 1
 	}
 
+	// If verbose mode is enabled on Windows, we need to attach or create a console
+	if logLevel > 0 && os.Getenv("OS") == "Windows_NT" {
+		setupWindowsConsole()
+	}
+
 	if *nogui {
 		// Run in CLI mode (old behavior)
 		runCLI(logLevel)
@@ -86,13 +91,34 @@ func runGUI(level int) {
 	})
 
 	if err != nil {
-		errMsg := fmt.Sprintf("Failed to start GUI: %v\n\nPossible solutions:\n1. Install WebView2 Runtime\n2. Run as Administrator\n3. Check logs in AppData", err)
+		errMsg := fmt.Sprintf("Failed to start GUI: %v\n\nPossible solutions:\n1. Install WebView2 Runtime\n2. Run as Administrator\n3. Check logs in the app folder or AppData", err)
 		if os.Getenv("OS") == "Windows_NT" {
 			showWindowsMessageBox("Startup Error", errMsg)
 		} else {
 			fmt.Println(errMsg)
 		}
 	}
+}
+
+// setupWindowsConsole attaches the application to the parent console or creates a new one
+func setupWindowsConsole() {
+	kernel32 := syscall.NewLazyDLL("kernel32.dll")
+	attachConsole := kernel32.NewProc("AttachConsole")
+
+	// Try to attach to the console of the parent process (e.g., CMD or PowerShell)
+	// 0xFFFFFFFF is ATTACH_PARENT_PROCESS
+	r, _, _ := attachConsole.Call(uintptr(0xFFFFFFFF))
+	if r == 0 {
+		// If attaching fails, create a new console window
+		allocConsole := kernel32.NewProc("AllocConsole")
+		allocConsole.Call()
+	}
+
+	// Redirect standard handles to the console
+	hout, _ := syscall.GetStdHandle(syscall.STD_OUTPUT_HANDLE)
+	os.Stdout = os.NewFile(uintptr(hout), "/dev/stdout")
+	os.Stderr = os.NewFile(uintptr(os.Stderr.Fd()), "/dev/stderr")
+	log.SetOutput(os.Stdout)
 }
 
 // showWindowsMessageBox shows a native Windows error dialog without requiring any GUI toolkit
@@ -120,8 +146,8 @@ func runCLI(level int) {
 ╔══════════════════════════════════════════════════════════════╗
 ║        CS2 Better Auto Director                              ║
 ║                                                              ║
-║  Intelligent automatic spectating                           ║
-║  Automatically switches to exciting player encounters       ║
+║  Intelligent automatic spectating                            ║
+║  Automatically switches to exciting player encounters        ║
 ╚══════════════════════════════════════════════════════════════╝
 
 MODE: CLI (No GUI)
