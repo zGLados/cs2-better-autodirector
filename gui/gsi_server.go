@@ -45,7 +45,7 @@ func (s *GSIServer) HandleGameState(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	s.currentGameState = gameState
 	// Debug: dump raw GSI data (only first time to avoid spam)
-	if VerboseMode && !s.debugDumped && len(gameState) > 0 {
+	if LogLevel >= 1 && !s.debugDumped && len(gameState) > 0 {
 		DumpGameState(gameState)
 		s.debugDumped = true
 	}

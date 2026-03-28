@@ -222,7 +222,7 @@ func GetPlayerInfo(gameState map[string]interface{}) []PlayerInfo {
 			if posStr, ok := posData.(string); ok {
 				position = parsePositionString(posStr)
 
-				if VerboseMode {
+				if LogLevel >= 1 {
 					if position.X == 0 && position.Y == 0 && position.Z == 0 {
 						LogVerbose("[ANALYZER] ⚠️  Player %s: position string is '%s' but parsed as ZERO!",
 							getStringValue(playerMap, "name"), posStr)
@@ -239,19 +239,19 @@ func GetPlayerInfo(gameState map[string]interface{}) []PlayerInfo {
 					Z: getFloatValue(posMap, "z"),
 				}
 
-				if VerboseMode {
+				if LogLevel >= 1 {
 					LogVerbose("[ANALYZER] ✓ Player %s position from map: X=%.1f Y=%.1f Z=%.1f",
 						getStringValue(playerMap, "name"), position.X, position.Y, position.Z)
 				}
 			} else {
-				if VerboseMode {
+				if LogLevel >= 1 {
 					LogVerbose("[ANALYZER] ⚠️  Player %s: position has unexpected type %T",
 						getStringValue(playerMap, "name"), posData)
 				}
 				position = Position{X: 0, Y: 0, Z: 0}
 			}
 		} else {
-			if VerboseMode {
+			if LogLevel >= 1 {
 				LogVerbose("[ANALYZER] ❌ Player %s: NO 'position' key in GSI data!",
 					getStringValue(playerMap, "name"))
 			}
