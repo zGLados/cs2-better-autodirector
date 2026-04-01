@@ -481,6 +481,23 @@ function updateStatusWidget(status) {
     document.getElementById('roundNumber').textContent = status.RoundNumber || '-';
     document.getElementById('score').textContent = `${status.ScoreCT || 0} : ${status.ScoreT || 0}`;
     document.getElementById('roundPhase').textContent = status.RoundPhase || '-';
+    
+    // Update FACEIT widget scores from live game (if widget is visible)
+    const faceitWidget = document.getElementById('faceitMatchData');
+    if (faceitWidget && faceitWidget.style.display !== 'none') {
+        // Update scores from live game GSI data
+        // Note: We don't know which team is CT/T, so we just show the scores as-is
+        // This assumes team1 is shown first and corresponds to the left score in OpenHud
+        const team1ScoreEl = document.getElementById('team1Score');
+        const team2ScoreEl = document.getElementById('team2Score');
+        
+        if (team1ScoreEl && team2ScoreEl) {
+            // Simple approach: Show CT score for team1, T score for team2
+            // In a real scenario, you'd need to track which FACEIT team is CT/T
+            team1ScoreEl.textContent = status.ScoreCT || 0;
+            team2ScoreEl.textContent = status.ScoreT || 0;
+        }
+    }
 }
 
 function updateStatisticsWidget(stats) {
@@ -598,12 +615,14 @@ function displayFaceitMatchData(matchData) {
     // Update Team 1
     document.getElementById('team1Name').textContent = matchData.team1.name;
     document.getElementById('team1Logo').src = matchData.team1.logo || 'https://via.placeholder.com/80?text=Team1';
-    document.getElementById('team1Score').textContent = matchData.team1.score || '0';
+    // Don't use FACEIT score - will be updated from live game (GSI)
+    document.getElementById('team1Score').textContent = '0';
     
     // Update Team 2
     document.getElementById('team2Name').textContent = matchData.team2.name;
     document.getElementById('team2Logo').src = matchData.team2.logo || 'https://via.placeholder.com/80?text=Team2';
-    document.getElementById('team2Score').textContent = matchData.team2.score || '0';
+    // Don't use FACEIT score - will be updated from live game (GSI)
+    document.getElementById('team2Score').textContent = '0';
     
     // Update GOTV Link
     const gotvInput = document.getElementById('gotvLink');
@@ -625,7 +644,11 @@ function displayFaceitMatchData(matchData) {
     statusEl.textContent = statusMap[matchData.status.toUpperCase()] || matchData.status;
     
     // Update Competition Info
-    document.getElementById('matchCompetition').textContent = matchData.competition || 'Unknown';
+    let competitionText = matchData.competition || 'Unknown';
+    if (matchData.best_of && matchData.best_of > 0) {
+        competitionText += ` (BO${matchData.best_of})`;
+    }
+    document.getElementById('matchCompetition').textContent = competitionText;
     document.getElementById('matchId').textContent = matchData.match_id;
 }
 

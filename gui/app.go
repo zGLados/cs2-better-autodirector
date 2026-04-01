@@ -13,16 +13,20 @@ import (
 
 // App struct
 type App struct {
-	ctx            context.Context
-	autoDirector   *AutoDirector
-	faceitClient   *FaceitClient
-	mu             sync.RWMutex
-	isRunning      bool
-	stats          *Statistics
-	lastEncounters []EncounterInfo
-	lastPlayers    []PlayerInfo
-	lastGameState  map[string]interface{}
-	lastMatchData  *FaceitMatchData
+	ctx                      context.Context
+	autoDirector             *AutoDirector
+	faceitClient             *FaceitClient
+	openHudClient            *OpenHudClient
+	openHudMatchID           string
+	openHudScoreUpdateTicker *time.Ticker
+	openHudStopChan          chan bool
+	mu                       sync.RWMutex
+	isRunning                bool
+	stats                    *Statistics
+	lastEncounters           []EncounterInfo
+	lastPlayers              []PlayerInfo
+	lastGameState            map[string]interface{}
+	lastMatchData            *FaceitMatchData
 }
 
 // Statistics holds runtime statistics
@@ -527,8 +531,12 @@ func (a *App) SendToOpenHud() error {
 		return fmt.Errorf("failed to process Team 2: %w", err)
 	}
 
-	// Create match in OpenHud
-	match, err := openHudClient.CreateMatch(team1ID, team2ID)
+	// Create match in OpenHud with BestOf format
+	bestOf := a.lastMatchData.BestOf
+	if bestOf == 0 {
+		bestOf = 1 // Default to BO1 if not specified
+	}
+	match, err := openHudClient.CreateMatch(team1ID, team2ID, bestOf)
 	if err != nil {
 		return fmt.Errorf("failed to create match: %w", err)
 	}
@@ -538,9 +546,17 @@ func (a *App) SendToOpenHud() error {
 		return fmt.Errorf("failed to set current match: %w", err)
 	}
 
+	// Store OpenHud client and match ID for live updates
+	a.openHudClient = openHudClient
+	a.openHudMatchID = match.ID
+
+	// Start live score update loop
+	a.startOpenHudScoreUpdates()
+
 	LogInfo("✅ Successfully sent match to OpenHud!")
 	LogInfo("   Match ID: %s", match.ID)
-	LogInfo("   Teams: %s vs %s", a.lastMatchData.Team1.Name, a.lastMatchData.Team2.Name)
+	LogInfo("   Teams: %s vs %s (BO%d)", a.lastMatchData.Team1.Name, a.lastMatchData.Team2.Name, bestOf)
+	LogInfo("   Live score updates enabled")
 
 	return nil
 }
@@ -581,4 +597,102 @@ func (a *App) processTeamForOpenHud(client *OpenHudClient, teamData *FaceitTeamD
 	}
 
 	return team.ID, nil
+}
+
+// startOpenHudScoreUpdates starts a background goroutine that updates scores in OpenHud
+func (a *App) startOpenHudScoreUpdates() {
+	// Stop existing ticker if running
+	a.stopOpenHudScoreUpdates()
+
+	a.openHudScoreUpdateTicker = time.NewTicker(2 * time.Second)
+	a.openHudStopChan = make(chan bool)
+
+	go func() {
+		lastScoreCT := -1
+		lastScoreT := -1
+		matchStarted := false
+
+		for {
+			select {
+			case <-a.openHudStopChan:
+				return
+			case <-a.openHudScoreUpdateTicker.C:
+				a.mu.RLock()
+				openHudClient := a.openHudClient
+				matchID := a.openHudMatchID
+				gameState := a.lastGameState
+				a.mu.RUnlock()
+
+				// Skip if no client or match ID
+				if openHudClient == nil || matchID == "" || gameState == nil {
+					continue
+				}
+
+				// Extract scores from game state
+				var scoreCT, scoreT int
+				var hasScores bool
+
+				if mapData, ok := gameState["map"].(map[string]interface{}); ok {
+					if teamCT, ok := mapData["team_ct"].(map[string]interface{}); ok {
+						if score, ok := teamCT["score"].(float64); ok {
+							scoreCT = int(score)
+							hasScores = true
+						}
+					}
+					if teamT, ok := mapData["team_t"].(map[string]interface{}); ok {
+						if score, ok := teamT["score"].(float64); ok {
+							scoreT = int(score)
+							hasScores = true
+						}
+					}
+				}
+
+				// Only update if scores changed or match just started
+				if hasScores && (scoreCT != lastScoreCT || scoreT != lastScoreT) {
+					// Determine status
+					status := ""
+					if !matchStarted && (scoreCT > 0 || scoreT > 0) {
+						status = "in_progress"
+						matchStarted = true
+					}
+
+					// Update OpenHud
+					err := openHudClient.UpdateMatchScoreAndStatus(matchID, scoreCT, scoreT, status)
+					if err != nil {
+						LogDebug("Failed to update OpenHud scores: %v", err)
+					} else {
+						LogVerbose("Updated OpenHud scores: %d - %d", scoreCT, scoreT)
+						lastScoreCT = scoreCT
+						lastScoreT = scoreT
+					}
+				}
+			}
+		}
+	}()
+
+	LogInfo("Started OpenHud live score updates (every 2 seconds)")
+}
+
+// stopOpenHudScoreUpdates stops the score update loop
+func (a *App) stopOpenHudScoreUpdates() {
+	if a.openHudScoreUpdateTicker != nil {
+		a.openHudScoreUpdateTicker.Stop()
+		a.openHudScoreUpdateTicker = nil
+	}
+	if a.openHudStopChan != nil {
+		close(a.openHudStopChan)
+		a.openHudStopChan = nil
+	}
+}
+
+// StopOpenHudScoreUpdates stops the OpenHud score updates (callable from frontend)
+func (a *App) StopOpenHudScoreUpdates() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.stopOpenHudScoreUpdates()
+	a.openHudClient = nil
+	a.openHudMatchID = ""
+
+	LogInfo("Stopped OpenHud live score updates")
 }

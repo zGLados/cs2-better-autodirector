@@ -28,6 +28,7 @@ type FaceitMatchData struct {
 	MatchType   string         `json:"match_type"`
 	Competition string         `json:"competition"`
 	StartedAt   int64          `json:"started_at"`
+	BestOf      int            `json:"best_of"` // BO1, BO3, BO5 etc
 }
 
 // FaceitTeamData holds team information
@@ -122,6 +123,7 @@ func (fc *FaceitClient) getMatchDetails(matchID string) (*FaceitMatchData, error
 		CompetitionType string   `json:"competition_type"` // tournament, hub, matchmaking, etc.
 		OrganizerID     string   `json:"organizer_id"`     // FACEIT ID for official tournaments
 		Game            string   `json:"game"`
+		BestOf          int      `json:"best_of"` // BO1, BO3, BO5 etc
 		DemoURL         []string `json:"demo_url"`
 		Teams           map[string]struct {
 			Name   string `json:"name"`
@@ -146,6 +148,7 @@ func (fc *FaceitClient) getMatchDetails(matchID string) (*FaceitMatchData, error
 		StartedAt:   apiResponse.StartedAt,
 		Competition: apiResponse.CompetitionName,
 		MatchType:   apiResponse.Game,
+		BestOf:      apiResponse.BestOf,
 	}
 
 	// Extract team data (FACEIT API returns teams in "faction1" and "faction2")

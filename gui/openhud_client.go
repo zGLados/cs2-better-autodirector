@@ -209,7 +209,7 @@ func (c *OpenHudClient) UpdateTeam(teamID string, name, country, shortName strin
 }
 
 // CreateMatch creates a new match in OpenHud
-func (c *OpenHudClient) CreateMatch(team1ID, team2ID string) (*OpenHudMatch, error) {
+func (c *OpenHudClient) CreateMatch(team1ID, team2ID string, bestOf int) (*OpenHudMatch, error) {
 	url := fmt.Sprintf("%s/api/match", c.baseURL)
 
 	matchData := map[string]interface{}{
@@ -217,6 +217,11 @@ func (c *OpenHudClient) CreateMatch(team1ID, team2ID string) (*OpenHudMatch, err
 		"team2":  team2ID,
 		"score":  [2]int{0, 0},
 		"status": "waiting",
+	}
+
+	// Add BestOf format as note if provided
+	if bestOf > 0 {
+		matchData["note"] = fmt.Sprintf("BO%d", bestOf)
 	}
 
 	jsonData, err := json.Marshal(matchData)
@@ -286,11 +291,21 @@ func (c *OpenHudClient) SetCurrentMatch(matchID string) error {
 
 // UpdateMatchScore updates the score of a match
 func (c *OpenHudClient) UpdateMatchScore(matchID string, team1Score, team2Score int) error {
+	return c.UpdateMatchScoreAndStatus(matchID, team1Score, team2Score, "")
+}
+
+// UpdateMatchScoreAndStatus updates the score and optionally the status of a match
+func (c *OpenHudClient) UpdateMatchScoreAndStatus(matchID string, team1Score, team2Score int, status string) error {
 	url := fmt.Sprintf("%s/api/match/%s", c.baseURL, matchID)
 
 	matchData := map[string]interface{}{
 		"_id":   matchID,
 		"score": [2]int{team1Score, team2Score},
+	}
+
+	// Only update status if provided
+	if status != "" {
+		matchData["status"] = status
 	}
 
 	jsonData, err := json.Marshal(matchData)
@@ -313,10 +328,14 @@ func (c *OpenHudClient) UpdateMatchScore(matchID string, team1Score, team2Score 
 
 	if resp.StatusCode != 201 && resp.StatusCode != 200 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("failed to update match score (status %d): %s", resp.StatusCode, string(bodyBytes))
+		return fmt.Errorf("failed to update match (status %d): %s", resp.StatusCode, string(bodyBytes))
 	}
 
-	LogInfo("Updated match score in OpenHud: %d - %d", team1Score, team2Score)
+	if status != "" {
+		LogInfo("Updated match in OpenHud: %d - %d (status: %s)", team1Score, team2Score, status)
+	} else {
+		LogInfo("Updated match score in OpenHud: %d - %d", team1Score, team2Score)
+	}
 	return nil
 }
 
