@@ -15,19 +15,11 @@ Welcome to the documentation hub for CS2 Better Auto Director - an intelligent a
 ## ⚙️ Configuration
 
 ### Essential Setup
-- **[Secrets Configuration](SECRETS.md)** - API keys and credentials setup
 - **[Camera Priority System](CAMERA_PRIORITY.md)** - Understanding priority bonuses and camera switching logic
 
 ---
 
 ## 🎯 Features & Integration
-
-### FACEIT Integration
-- **[FACEIT Match Integration](FACEIT.md)** - Connect to FACEIT matches and stream GOTV
-  - Automatic match data fetching
-  - Team names and logos
-  - GOTV server connection
-  - **[Testing Guide](FACEIT_TESTING.md)** - Test API integration standalone
 
 ### Auto Director System
 - **Camera Priority** - Intelligent player selection based on:
@@ -50,18 +42,17 @@ Welcome to the documentation hub for CS2 Better Auto Director - an intelligent a
 │  ┌────────────┐  ┌──────────────────────┐  │
 │  │  Frontend  │  │  Go Backend (App)    │  │
 │  │ HTML/JS/CSS│◄─┤  - AutoDirector      │  │
-│  └────────────┘  │  - FACEIT Client     │  │
-│                  │  - PlayerAnalyzer    │  │
+│  └────────────┘  │  - PlayerAnalyzer    │  │
 │                  └──────────┬───────────┘  │
 └─────────────────────────────┼───────────────┘
                               │
               ┌───────────────┼───────────────┐
               │               │               │
-         ┌────▼────┐    ┌────▼─────┐   ┌────▼─────┐
-         │   GSI   │    │ FACEIT   │   │Spectator │
-         │ Server  │    │   API    │   │Controller│
-         │ :3000   │    │          │   │  (Keys)  │
-         └────┬────┘    └──────────┘   └──────────┘
+         ┌────▼────┐                    ┌────▼─────┐
+         │   GSI   │                    │Spectator │
+         │ Server  │                    │Controller│
+         │ :3000   │                    │  (Keys)  │
+         └────┬────┘                    └──────────┘
               │
          ┌────▼────┐
          │   CS2   │
@@ -73,7 +64,6 @@ Welcome to the documentation hub for CS2 Better Auto Director - an intelligent a
 - `gui/main.go` - Entry point (GUI + CLI mode)
 - `gui/app.go` - Main application logic
 - `gui/autodirector.go` - Camera switching algorithm
-- `gui/faceit_client.go` - FACEIT API integration
 - `gui/player_analyzer.go` - Priority calculation
 - `gui/spectator_controller.go` - CS2 keyboard control
 
@@ -100,28 +90,14 @@ wails build
 
 See [BUILD.md](BUILD.md) for detailed instructions.
 
-### Testing
-
-**Test FACEIT Integration:**
-```bash
-cd scripts
-go run test_faceit.go -url "https://www.faceit.com/en/cs2/room/1-..."
-```
-
-Verifies API connection and match data fetching. See [FACEIT Testing Guide](FACEIT_TESTING.md).
-
 ---
 
 ## 📖 Configuration Files
 
 ### User Configuration
 - `config/settings.json` - Camera priority and behavior settings
-- `config/secrets.json` - API keys (not in version control)
 - `config/gamestate_integration_autodirector.cfg` - CS2 GSI config
 - `config/spectator_bindings.cfg` - CS2 keybindings
-
-### Templates
-- `config/secrets.example.json` - Template for secrets file
 
 ---
 
@@ -132,23 +108,6 @@ Verifies API connection and match data fetching. See [FACEIT Testing Guide](FACE
 2. Execute `spectator_bindings` in console
 3. Launch Auto Director GUI
 4. Click "Start Auto Director"
-
-### With FACEIT Integration
-1. Configure FACEIT API key in `config/secrets.json`
-2. Launch Auto Director GUI
-3. Paste FACEIT match room URL
-4. Click "Fetch Match Data"
-5. Copy GOTV connect command
-6. Connect to GOTV in CS2
-7. Start Auto Director
-
-### Testing FACEIT Integration
-Before using in production, test the API connection:
-```bash
-cd scripts
-go run test_faceit.go -url "FACEIT_MATCH_URL"
-```
-See [FACEIT Testing Guide](FACEIT_TESTING.md) for detailed testing instructions.
 
 ---
 
@@ -161,12 +120,7 @@ See [FACEIT Testing Guide](FACEIT_TESTING.md) for detailed testing instructions.
 - Restart CS2 after config installation
 - Check logs for GSI server status
 
-**"FACEIT client not initialized"**
-- Ensure `config/secrets.json` exists
-- Verify API key is correct
-- Restart application
-
-**"Spectator controls not working"**
+**"Spectator controls not working"****
 - Execute `exec spectator_bindings` in CS2 console
 - Check keybindings in spectator mode
 
@@ -200,7 +154,6 @@ See [LICENSE](../LICENSE) for details.
 
 **Built with:**
 - [Wails](https://wails.io/) - Go + Web GUI framework
-- [FACEIT API](https://developers.faceit.com/) - Match data integration
 - CS2 Game State Integration
 
 ---

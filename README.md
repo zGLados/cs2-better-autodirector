@@ -61,29 +61,6 @@ cs2-better-autodirector.exe -nogui
 
 ---
 
-## 🎯 FACEIT Integration (NEW!)
-
-**Stream competitive matches directly from FACEIT:**
-- Fetch match data by pasting FACEIT match room URL
-- Automatic team names and logos
-- GOTV server connection details
-- Live match status and scores
-- Perfect for tournament streaming
-
-**Quick Setup:**
-1. Get your [FACEIT API key](https://developers.faceit.com/)
-2. Add to `config/secrets.json` (see [docs/SECRETS.md](docs/SECRETS.md))
-3. Paste match URL in dashboard
-4. Connect to GOTV and start streaming!
-
-**Testing:**
-- Test API integration: `cd scripts && go run test_faceit.go -url "MATCH_URL"`
-- See [Testing Guide](docs/FACEIT_TESTING.md) for details
-
-👉 **[Full FACEIT Documentation](docs/FACEIT.md)**
-
----
-
 ## 📂 Project Structure
 
 ```
@@ -151,20 +128,10 @@ See [docs/BUILD.md](docs/BUILD.md) for detailed project structure and build inst
 - Top encounters rankings with priorities
 - Live event log stream
 - Statistics dashboard (sniper kills, upset victories, damage detections)
-- **FACEIT match integration widget** - Fetch and display match data
 - Dark gaming-style theme
 - Built with Wails (native cross-platform application)
 
-🔌 **FACEIT Integration**
-- Connect to competitive matches via FACEIT API
-- Automatic match data fetching (teams, logos, scores)
-- GOTV server connection details
-- Match status tracking (live, ready, finished)
-- Tournament/competition information
-- Streamlined workflow for tournament streaming
-- 👉 **[FACEIT Setup Guide](docs/FACEIT.md)**
-
-💻 **CLI Mode Available**
+ **CLI Mode Available**
 - Run with `-nogui` flag for terminal mode
 - Same functionality without graphical interface
 - Perfect for servers or headless setups
@@ -635,9 +602,6 @@ For detailed documentation, feature guides, and troubleshooting:
 
 ### Quick Links
 
-- **[FACEIT Integration Guide](docs/FACEIT.md)** - Stream competitive matches from FACEIT
-  - **[Testing Guide](docs/FACEIT_TESTING.md)** - Test FACEIT API integration
-- **[Secrets Configuration](docs/SECRETS.md)** - API keys and credentials setup
 - **[Build Instructions](docs/BUILD.md)** - Compile from source
 - **[Camera Priority System](docs/CAMERA_PRIORITY.md)** - Understanding the algorithm
 

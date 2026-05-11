@@ -48,11 +48,6 @@ func getConfigDir() string {
 	return appConfigDir
 }
 
-// Secrets holds sensitive data like API keys
-type Secrets struct {
-	FaceitAPIKey string `json:"faceit_api_key"` // FACEIT API Key
-}
-
 // Settings represents all configurable parameters for the Auto Director
 type Settings struct {
 	// Camera Priority Bonuses
@@ -177,58 +172,4 @@ func loadSettingsFromFile() (*Settings, error) {
 // ResetSettings resets settings to defaults
 func (a *App) ResetSettings() error {
 	return a.SaveSettings(NewDefaultSettings())
-}
-
-// ========== Secrets Management ==========
-
-// LoadSecrets loads secrets from file or returns empty struct
-func LoadSecrets() *Secrets {
-	secrets, err := loadSecretsFromFile()
-	if err != nil {
-		LogInfo("No secrets file found. Please create config/secrets.json")
-		return &Secrets{}
-	}
-	return secrets
-}
-
-// loadSecretsFromFile loads secrets from JSON file
-func loadSecretsFromFile() (*Secrets, error) {
-	filePath := filepath.Join(getConfigDir(), "config", "secrets.json")
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, err
-	}
-
-	var secrets Secrets
-	if err := json.Unmarshal(data, &secrets); err != nil {
-		return nil, err
-	}
-
-	return &secrets, nil
-}
-
-// saveSecretsToFile saves secrets to JSON file
-func saveSecretsToFile(secrets *Secrets) error {
-	configDir := filepath.Join(getConfigDir(), "config")
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		return err
-	}
-
-	filePath := filepath.Join(configDir, "secrets.json")
-	data, err := json.MarshalIndent(secrets, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(filePath, data, 0644)
-}
-
-// GetSecrets returns current secrets
-func (a *App) GetSecrets() *Secrets {
-	return LoadSecrets()
-}
-
-// SaveSecrets saves secrets to file
-func (a *App) SaveSecrets(secrets *Secrets) error {
-	return saveSecretsToFile(secrets)
 }

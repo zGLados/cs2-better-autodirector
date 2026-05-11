@@ -2,7 +2,7 @@ import './style.css';
 import './app.css';
 import './dashboard.css';
 
-import { StartAutoDirector, StopAutoDirector, GetStatus, GetPlayers, GetEncounters, GetStatistics, GetSettings, SaveSettings, ResetSettings, ExportSettings, ImportSettings, InitFaceitClient, FetchFaceitMatchData, GetGotvConnectCommand, GetFaceitAPIKey, SaveFaceitAPIKey, SendToOpenHud } from '../wailsjs/go/main/App';
+import { StartAutoDirector, StopAutoDirector, GetStatus, GetPlayers, GetEncounters, GetStatistics, GetSettings, SaveSettings, ResetSettings, ExportSettings, ImportSettings } from '../wailsjs/go/main/App';
 import {EventsOn} from '../wailsjs/runtime/runtime';
 
 // Global state
@@ -10,8 +10,6 @@ let isRunning = false;
 let logs = [];
 const MAX_LOGS = 100;
 let currentPage = 'dashboard'; // Track current page
-let currentFaceitUrl = null; // Currently loaded FACEIT match URL
-let faceitUpdateInterval = null; // Interval for auto-updating FACEIT match data
 
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', () => {
@@ -26,13 +24,7 @@ function showPage(page) {
         initDashboard();
         setupEventListeners();
         startDataPolling();
-        // Resume FACEIT auto-update if we have a URL
-        if (currentFaceitUrl) {
-            startFaceitAutoUpdate();
-        }
     } else if (page === 'settings') {
-        // Stop FACEIT auto-update when leaving dashboard
-        stopFaceitAutoUpdate();
         initSettings();
         setupSettingsListeners();
     }
@@ -52,70 +44,6 @@ function initDashboard() {
                     </div>
                 </div>
             </header>
-
-            <!-- FACEIT Integration Widget -->
-            <div class="widget faceit-widget" style="margin: 20px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border: 2px solid #ff5500;">
-                <h2 style="color: #ff5500;">🎯 FACEIT Match Integration</h2>
-                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                    <input 
-                        type="text" 
-                        id="faceitUrl" 
-                        placeholder="Paste FACEIT Match Room URL here..." 
-                        style="flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid #ff5500; border-radius: 5px; color: white;"
-                    />
-                    <button id="fetchFaceitBtn" class="btn" style="background: #ff5500; color: white; padding: 10px 20px;">Fetch Match Data</button>
-                </div>
-                <div id="faceitMatchData" style="display: none;">
-                    <div style="display: flex; justify-content: space-around; align-items: center; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 8px;">
-                        <!-- Team 1 -->
-                        <div style="text-align: center; flex: 1;">
-                            <img id="team1Logo" src="" alt="Team 1" style="width: 80px; height: 80px; border-radius: 50%; border: 2px solid #ff5500; margin-bottom: 10px;"/>
-                            <h3 id="team1Name" style="color: #ff5500; margin: 5px 0;">Team 1</h3>
-                            <div id="team1Score" style="font-size: 24px; font-weight: bold; color: white;">0</div>
-                        </div>
-                        
-                        <!-- VS / GOTV Link -->
-                        <div style="text-align: center; padding: 0 30px;">
-                            <div style="font-size: 32px; font-weight: bold; color: #ff5500; margin-bottom: 15px;">VS</div>
-                            <div style="margin-top: 10px;">
-                                <div style="font-size: 12px; color: #888; margin-bottom: 5px;">GOTV:</div>
-                                <input 
-                                    id="gotvLink" 
-                                    type="text" 
-                                    readonly 
-                                    value="Not available yet" 
-                                    style="width: 300px; padding: 8px; background: rgba(0,0,0,0.5); border: 1px solid #ff5500; border-radius: 4px; color: #ff5500; text-align: center; font-family: monospace; font-size: 12px;"
-                                    onclick="this.select()"
-                                />
-                                <div style="font-size: 10px; color: #666; margin-top: 3px;">Click to copy</div>
-                            </div>
-                            <div id="matchStatus" style="margin-top: 10px; padding: 5px 15px; background: #ff5500; color: white; border-radius: 15px; display: inline-block; font-size: 12px;">
-                                Ready
-                            </div>
-                        </div>
-                        
-                        <!-- Team 2 -->
-                        <div style="text-align: center; flex: 1;">
-                            <img id="team2Logo" src="" alt="Team 2" style="width: 80px; height: 80px; border-radius: 50%; border: 2px solid #ff5500; margin-bottom: 10px;"/>
-                            <h3 id="team2Name" style="color: #ff5500; margin: 5px 0;">Team 2</h3>
-                            <div id="team2Score" style="font-size: 24px; font-weight: bold; color: white;">0</div>
-                        </div>
-                    </div>
-                    <div style="margin-top: 10px; padding: 10px; background: rgba(255,85,0,0.1); border-radius: 5px; font-size: 12px; color: #ff5500;">
-                        <strong>📌 Competition:</strong> <span id="matchCompetition">-</span> | 
-                        <strong>Match ID:</strong> <span id="matchId">-</span>
-                    </div>
-                    <!-- Send to OpenHud Button -->
-                    <div style="margin-top: 15px; text-align: center;">
-                        <button id="sendToOpenHudBtn" class="btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
-                            🚀 Send to OpenHud
-                        </button>
-                        <div style="font-size: 11px; color: #888; margin-top: 8px;">
-                            Make sure OpenHud is running on localhost:1349
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <!-- Main Content -->
             <div class="dashboard-content">
@@ -217,11 +145,6 @@ function setupEventListeners() {
     const settingsBtn = document.getElementById('settingsBtn');
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
-    const fetchFaceitBtn = document.getElementById('fetchFaceitBtn');
-    const faceitUrlInput = document.getElementById('faceitUrl');
-
-    // FACEIT client is initialized automatically on backend startup from secrets.json
-    // No need to initialize here
 
     if (settingsBtn) {
         settingsBtn.addEventListener('click', (e) => {
@@ -232,88 +155,6 @@ function setupEventListeners() {
         console.log('Settings button found and event listener attached');
     } else {
         console.error('Settings button not found!');
-    }
-
-    // FACEIT Match Fetch
-    if (fetchFaceitBtn && faceitUrlInput) {
-        fetchFaceitBtn.addEventListener('click', async () => {
-            const url = faceitUrlInput.value.trim();
-            if (!url) {
-                addLog('⚠️ Please enter a FACEIT match room URL');
-                return;
-            }
-
-            fetchFaceitBtn.disabled = true;
-            fetchFaceitBtn.textContent = 'Fetching...';
-            
-            try {
-                const matchData = await FetchFaceitMatchData(url);
-                displayFaceitMatchData(matchData);
-                addLog('✅ FACEIT match data loaded successfully');
-                
-                // Save URL and start auto-update
-                currentFaceitUrl = url;
-                startFaceitAutoUpdate();
-                
-                // Warn if no GOTV link is available
-                if (!matchData.gotv_link || matchData.gotv_link === '') {
-                    addLog('⚠️ No GOTV link available - Only public tournament matches provide GOTV access');
-                }
-            } catch (err) {
-                const errorMsg = err.toString();
-                if (errorMsg.includes('not initialized')) {
-                    addLog('⚠️ FACEIT API key not configured. Please add it to config/secrets.json');
-                } else {
-                    addLog(`❌ Error fetching FACEIT data: ${err}`);
-                }
-                console.error(err);
-            } finally {
-                fetchFaceitBtn.disabled = false;
-                fetchFaceitBtn.textContent = 'Fetch Match Data';
-            }
-        });
-
-        // Allow Enter key to fetch
-        faceitUrlInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                fetchFaceitBtn.click();
-            }
-        });
-    }
-
-    // Send to OpenHud Button
-    const sendToOpenHudBtn = document.getElementById('sendToOpenHudBtn');
-    if (sendToOpenHudBtn) {
-        sendToOpenHudBtn.addEventListener('click', async () => {
-            sendToOpenHudBtn.disabled = true;
-            sendToOpenHudBtn.textContent = '⏳ Sending...';
-            
-            try {
-                await SendToOpenHud();
-                addLog('✅ Match data successfully sent to OpenHud!');
-                addLog('   Teams and match created in OpenHud');
-                
-                // Visual feedback
-                sendToOpenHudBtn.style.background = 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)';
-                sendToOpenHudBtn.textContent = '✓ Sent to OpenHud';
-                
-                setTimeout(() => {
-                    sendToOpenHudBtn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-                    sendToOpenHudBtn.textContent = '🚀 Send to OpenHud';
-                    sendToOpenHudBtn.disabled = false;
-                }, 3000);
-            } catch (err) {
-                addLog(`❌ Failed to send to OpenHud: ${err}`);
-                console.error(err);
-                sendToOpenHudBtn.disabled = false;
-                sendToOpenHudBtn.textContent = '🚀 Send to OpenHud';
-                
-                // Check if error is about OpenHud not running
-                if (err.toString().includes('not reachable')) {
-                    addLog('⚠️ Make sure OpenHud is running on localhost:1349');
-                }
-            }
-        });
     }
 
     if (startBtn) {
@@ -373,47 +214,6 @@ function setupWailsEvents() {
     EventsOn('error', (error) => {
         addLog(`⚠️ Error: ${error}`);
     });
-
-    // Listen for FACEIT match updates
-    EventsOn('faceit_match_updated', (matchData) => {
-        displayFaceitMatchData(matchData);
-        addLog(`🎯 FACEIT match updated: ${matchData.team1.name} vs ${matchData.team2.name}`);
-    });
-}
-
-// FACEIT Auto-Update Functions
-function startFaceitAutoUpdate() {
-    // Clear any existing interval
-    stopFaceitAutoUpdate();
-    
-    if (!currentFaceitUrl) return;
-    
-    // Update every 5 seconds
-    faceitUpdateInterval = setInterval(async () => {
-        if (!currentFaceitUrl) {
-            stopFaceitAutoUpdate();
-            return;
-        }
-        
-        try {
-            const matchData = await FetchFaceitMatchData(currentFaceitUrl);
-            displayFaceitMatchData(matchData);
-            // Silently update, don't spam logs
-        } catch (err) {
-            console.error('Error auto-updating FACEIT data:', err);
-            // If error persists, stop auto-update
-            stopFaceitAutoUpdate();
-        }
-    }, 5000);
-    
-    addLog('🔄 FACEIT auto-update started (every 5 seconds)');
-}
-
-function stopFaceitAutoUpdate() {
-    if (faceitUpdateInterval) {
-        clearInterval(faceitUpdateInterval);
-        faceitUpdateInterval = null;
-    }
 }
 
 function updateControlButtons() {
@@ -481,23 +281,6 @@ function updateStatusWidget(status) {
     document.getElementById('roundNumber').textContent = status.RoundNumber || '-';
     document.getElementById('score').textContent = `${status.ScoreCT || 0} : ${status.ScoreT || 0}`;
     document.getElementById('roundPhase').textContent = status.RoundPhase || '-';
-    
-    // Update FACEIT widget scores from live game (if widget is visible)
-    const faceitWidget = document.getElementById('faceitMatchData');
-    if (faceitWidget && faceitWidget.style.display !== 'none') {
-        // Update scores from live game GSI data
-        // Note: We don't know which team is CT/T, so we just show the scores as-is
-        // This assumes team1 is shown first and corresponds to the left score in OpenHud
-        const team1ScoreEl = document.getElementById('team1Score');
-        const team2ScoreEl = document.getElementById('team2Score');
-        
-        if (team1ScoreEl && team2ScoreEl) {
-            // Simple approach: Show CT score for team1, T score for team2
-            // In a real scenario, you'd need to track which FACEIT team is CT/T
-            team1ScoreEl.textContent = status.ScoreCT || 0;
-            team2ScoreEl.textContent = status.ScoreT || 0;
-        }
-    }
 }
 
 function updateStatisticsWidget(stats) {
@@ -603,53 +386,6 @@ function updateEncountersList(encounters) {
             </div>
         </div>
     `).join('');
-}
-
-function displayFaceitMatchData(matchData) {
-    if (!matchData) return;
-    
-    // Show the match data container
-    const matchDataEl = document.getElementById('faceitMatchData');
-    matchDataEl.style.display = 'block';
-    
-    // Update Team 1
-    document.getElementById('team1Name').textContent = matchData.team1.name;
-    document.getElementById('team1Logo').src = matchData.team1.logo || 'https://via.placeholder.com/80?text=Team1';
-    // Don't use FACEIT score - will be updated from live game (GSI)
-    document.getElementById('team1Score').textContent = '0';
-    
-    // Update Team 2
-    document.getElementById('team2Name').textContent = matchData.team2.name;
-    document.getElementById('team2Logo').src = matchData.team2.logo || 'https://via.placeholder.com/80?text=Team2';
-    // Don't use FACEIT score - will be updated from live game (GSI)
-    document.getElementById('team2Score').textContent = '0';
-    
-    // Update GOTV Link
-    const gotvInput = document.getElementById('gotvLink');
-    if (matchData.gotv_link && matchData.gotv_link !== '') {
-        gotvInput.value = matchData.gotv_link;
-    } else {
-        gotvInput.value = 'Not available - Only public tournament matches provide GOTV access';
-    }
-    
-    // Update Match Status
-    const statusEl = document.getElementById('matchStatus');
-    const statusMap = {
-        'ONGOING': '🔴 LIVE',
-        'FINISHED': '✅ Finished',
-        'READY': '⏳ Ready',
-        'CANCELLED': '❌ Cancelled',
-        'CONFIGURING': '⚙️ Configuring'
-    };
-    statusEl.textContent = statusMap[matchData.status.toUpperCase()] || matchData.status;
-    
-    // Update Competition Info
-    let competitionText = matchData.competition || 'Unknown';
-    if (matchData.best_of && matchData.best_of > 0) {
-        competitionText += ` (BO${matchData.best_of})`;
-    }
-    document.getElementById('matchCompetition').textContent = competitionText;
-    document.getElementById('matchId').textContent = matchData.match_id;
 }
 
 function addLog(message) {
