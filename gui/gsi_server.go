@@ -83,6 +83,19 @@ func (s *GSIServer) GetCurrentGameState() map[string]interface{} {
 	return result
 }
 
+// SpectatedSteamID returns the currently spectated SteamID without logging
+// (safe to poll frequently).
+func (s *GSIServer) SpectatedSteamID() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if player, ok := s.currentGameState["player"].(map[string]interface{}); ok {
+		if steamid, ok := player["steamid"].(string); ok {
+			return steamid
+		}
+	}
+	return ""
+}
+
 // GetCurrentlySpectatedPlayer tries to determine which player is currently being spectated
 // Returns the SteamID of the spectated player, or empty string if unknown
 func (s *GSIServer) GetCurrentlySpectatedPlayer() string {

@@ -3,7 +3,7 @@
 
 [Setup]
 AppName=CS2 Better Auto Director
-AppVersion=0.3.4
+AppVersion=0.4.0
 AppPublisher=CS2 Better Auto Director
 DefaultDirName={autopf}\CS2BetterAutoDirector
 DefaultGroupName=CS2 Better Auto Director
@@ -31,13 +31,14 @@ Source: "..\gui\build\bin\cs2-better-autodirector.exe"; DestDir: "{app}"; Flags:
 ; Config files
 Source: "..\config\gamestate_integration_autodirector.cfg"; DestDir: "{app}\config"; Flags: ignoreversion
 Source: "..\config\spectator_bindings.cfg"; DestDir: "{app}\config"; Flags: ignoreversion
-Source: "..\config\secrets.example.json"; DestDir: "{app}\config"; Flags: ignoreversion
+Source: "..\COMO-USAR.txt"; DestDir: "{app}"; Flags: ignoreversion isreadme
 
 [Icons]
 Name: "{group}\CS2 Better Auto Director"; Filename: "{app}\cs2-better-autodirector.exe"; WorkingDir: "{app}"
 Name: "{group}\CS2 Better Auto Director (Debug Mode)"; Filename: "{app}\cs2-better-autodirector.exe"; Parameters: "-v"; WorkingDir: "{app}"
 Name: "{autoprograms}\CS2 Better Auto Director"; Filename: "{app}\cs2-better-autodirector.exe"; WorkingDir: "{app}"
 Name: "{autodesktop}\CS2 Better Auto Director"; Filename: "{app}\cs2-better-autodirector.exe"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{group}\Como usar"; Filename: "{app}\COMO-USAR.txt"
 Name: "{group}\Config Folder"; Filename: "{app}\config"
 Name: "{group}\GitHub Repository"; Filename: "https://github.com/zGLados/cs2-better-autodirector"
 Name: "{group}\Uninstall CS2 Better Auto Director"; Filename: "{uninstallexe}"

@@ -1,0 +1,105 @@
+﻿=====================================================
+  CS2 BETTER AUTO DIRECTOR - COMO USAR
+=====================================================
+
+O programa troca a câmera do CS2 sozinho durante
+transmissões (GOTV) e demos, mostrando o jogador que
+vai fazer a próxima kill.
+
+
+-----------------------------------------------------
+ 1. PREPARAR (só na primeira vez)
+-----------------------------------------------------
+
+1. Extraia o arquivo .zip para uma pasta fácil de
+   achar, por exemplo a Área de Trabalho ou Documentos.
+
+2. Dentro da pasta extraída, abra a pasta "config" e
+   copie os dois arquivos:
+      gamestate_integration_autodirector.cfg
+      spectator_bindings.cfg
+
+   Cole os dois nesta pasta:
+      C:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive\game\csgo\cfg
+
+   (Se o Windows perguntar se quer substituir, clique
+   em "Substituir". Se a sua Steam estiver em outro
+   disco, procure a pasta "game\csgo\cfg" dentro da
+   pasta do CS2.)
+
+3. Abra o CS2 e vá em:
+   Configurações > Jogo > "Ativar console do desenvolvedor"
+   e escolha "Sim".
+
+4. Abra o console apertando a tecla  '  (fica embaixo
+   do Esc) e digite:
+
+      bind F9 spec_mode_toggle
+
+5. Feche o CS2 e abra de novo.
+
+
+-----------------------------------------------------
+ 2. TODA VEZ QUE FOR USAR
+-----------------------------------------------------
+
+1. Abra o CS2.
+
+2. Abra o console (tecla ') e digite:
+
+      exec spectator_bindings
+
+3. Entre na transmissão (GOTV) ou abra a demo.
+
+4. Aperte F9.
+   (No console deve aparecer: [SPECTATOR MODE ON])
+
+5. Na pasta do programa, clique com o botão direito em
+   "cs2-better-autodirector.exe" e escolha
+   "Executar como administrador".
+
+   Na primeira vez, se aparecer "O Windows protegeu o
+   computador", clique em "Mais informações" e depois
+   em "Executar assim mesmo". Se o Windows pedir
+   permissão de rede, clique em "Permitir".
+
+6. No programa, clique em "Start".
+
+7. Volte para o CS2 (Alt + Tab) e deixe o jogo aberto
+   na frente. Pronto, a câmera já está no automático.
+
+
+-----------------------------------------------------
+ DURANTE A TRANSMISSÃO
+-----------------------------------------------------
+
+- Não aperte as teclas de 1 a 0 no teclado.
+- Não deixe outra janela na frente do CS2.
+- Quer controlar a câmera você mesmo? Clique em "STOP"
+  no programa. Para voltar ao automático, clique em
+  "Start".
+- Quando for jogar normalmente de novo, aperte F9.
+
+
+-----------------------------------------------------
+ SE NÃO FUNCIONAR
+-----------------------------------------------------
+
+A câmera não troca:
+  - O CS2 está na frente das outras janelas?
+  - Você apertou F9 depois de entrar na transmissão?
+  - Você abriu o programa como administrador?
+
+O programa não mostra os jogadores:
+  - Confira se os dois arquivos da parte 1 estão na
+    pasta "cfg" do CS2.
+  - Feche e abra o CS2 de novo.
+
+Precisa de ajuda?
+  1. Na pasta do programa, clique com o botão direito
+     em "Abrir em modo debug.bat" e escolha
+     "Executar como administrador".
+  2. Faça o problema acontecer de novo.
+  3. Feche o programa.
+  4. Envie a pasta "logs" (fica dentro da pasta do
+     programa) para quem te passou o programa.

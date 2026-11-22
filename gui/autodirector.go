@@ -81,7 +81,7 @@ func (ad *AutoDirector) Run() {
 			// Extract and send encounters for GUI
 			encounters := ad.playerAnalyzer.PredictEncounters(players)
 			if ad.app != nil && len(encounters) > 0 {
-				encounterInfos := convertEncountersToInfo(encounters, ad.playerAnalyzer.currentSpectatedID)
+				encounterInfos := convertEncountersToInfo(encounters, ad.playerAnalyzer.CurrentSpectatedID())
 				ad.app.UpdateEncounters(encounterInfos)
 			}
 
@@ -101,7 +101,11 @@ func (ad *AutoDirector) Run() {
 
 				// Sync with actual spectated player from GSI
 				actualSpectatedID := ad.gsiServer.GetCurrentlySpectatedPlayer()
-				if actualSpectatedID != "" && actualSpectatedID != ad.playerAnalyzer.currentSpectatedID {
+				// FIX: right after we switch, GSI still reports the previous player for a few
+				// hundred ms. Syncing to that stale value undid our own switch and reset the
+				// sticky timer, so we ignore it during a short grace period.
+				if actualSpectatedID != "" && actualSpectatedID != ad.playerAnalyzer.CurrentSpectatedID() &&
+					!ad.playerAnalyzer.RecentlySwitched(syncGracePeriod) {
 					LogInfo("🔄 Synced spectated player: CS is on different player than expected")
 					ad.playerAnalyzer.SyncCurrentPlayer(actualSpectatedID)
 				}

@@ -1,4 +1,4 @@
-package main
+package director
 
 import (
 	"math"
@@ -22,7 +22,9 @@ type PlayerInfo struct {
 	Deaths         int
 	EquipmentValue int
 	HasDefuser     bool
-	ActiveWeapon   string // e.g. "weapon_awp", "weapon_ak47"
+	ActiveWeapon   string   // e.g. "weapon_awp", "weapon_ak47"
+	Forward        Position // Aim direction (unit vector) from GSI "forward"
+	HasForward     bool     // True if GSI sent a usable forward vector
 }
 
 // Position represents a 3D position
@@ -98,6 +100,86 @@ func isShootingWeapon(weapon string) bool {
 	return true
 }
 
+// Aim thresholds (cosine of the angle between where a player looks and the
+// direction to the other player)
+const (
+	aimOnTargetCos = 0.94 // ~20°: crosshair is on/near the enemy
+	aimAwayCos     = 0.5  // ~60°: clearly looking somewhere else
+)
+
+// Kill-follow constants (any weapon kill)
+const (
+	killFollowBonus    = 120.0           // Priority bonus for a player who just got a kill
+	killFollowDuration = 6 * time.Second // How long the bonus lasts
+	minEventSwitchGap  = 750 * time.Millisecond
+)
+
+// Anti ping-pong (hysteresis) for encounter-based switches. Event switches
+// (kill, death, damage, AWP kill, upset) are not affected.
+const (
+	minDwellTime      = 4 * time.Second // Min time on a player before an encounter-based switch
+	switchMargin      = 40.0            // New encounter must beat the current one by this much
+	returnMargin      = 80.0            // ...and by more when going back to the previous player
+	returnWindow      = 8 * time.Second // What counts as "going back"
+	actionProtectTime = 2 * time.Second // Don't leave a player who just dealt damage/killed for a damage event
+)
+
+// currentInAction reports whether the spectated player dealt damage or got a
+// kill within d (we are probably watching the important fight already).
+func (pa *PlayerAnalyzer) currentInAction(d time.Duration) bool {
+	id := pa.currentSpectatedID
+	if id == "" {
+		return false
+	}
+	if t, ok := pa.damageDealtTime[id]; ok && since(t) < d {
+		return true
+	}
+	if t, ok := pa.killTime[id]; ok && since(t) < d {
+		return true
+	}
+	return false
+}
+
+// aimCos returns the cosine between from's aim direction and the direction
+// from from's eyes to to's body. ok=false if aim/position data is missing.
+func aimCos(from, to PlayerInfo) (float64, bool) {
+	if !from.HasForward {
+		return 0, false
+	}
+	if (from.Position == Position{}) || (to.Position == Position{}) {
+		return 0, false
+	}
+	dx := to.Position.X - from.Position.X
+	dy := to.Position.Y - from.Position.Y
+	dz := (to.Position.Z + 40) - (from.Position.Z + 64) // target chest vs eye height
+	dist := math.Sqrt(dx*dx + dy*dy + dz*dz)
+	f := from.Forward
+	flen := math.Sqrt(f.X*f.X + f.Y*f.Y + f.Z*f.Z)
+	if dist < 1 || flen < 0.001 {
+		return 0, false
+	}
+	return (dx*f.X + dy*f.Y + dz*f.Z) / (dist * flen), true
+}
+
+// isAimingAt reports whether from is looking at to (within ~20°)
+func isAimingAt(from, to PlayerInfo) bool {
+	c, ok := aimCos(from, to)
+	return ok && c >= aimOnTargetCos
+}
+
+// hasEnemyNearby reports whether p has a living enemy within maxDist
+func hasEnemyNearby(p PlayerInfo, players []PlayerInfo, maxDist float64) bool {
+	for _, o := range players {
+		if o.Team == p.Team || o.Team == "Unknown" {
+			continue
+		}
+		if CalculateDistance3D(p.Position, o.Position) <= maxDist {
+			return true
+		}
+	}
+	return false
+}
+
 // Encounter represents a potential encounter
 type Encounter struct {
 	Player1  PlayerInfo
@@ -124,6 +206,8 @@ type PlayerAnalyzer struct {
 	playerHealth            map[string]int       // Track health per player for damage detection
 	damageDealtBonus        map[string]float64   // Temporary bonus for damage dealers
 	damageDealtTime         map[string]time.Time // When damage dealt bonus was given
+	killBonus               map[string]float64   // Temporary bonus for players who just got a kill (any weapon)
+	killTime                map[string]time.Time // When kill bonus was given
 
 	// Public stats counters (for GUI)
 	TotalSniperKills      int
@@ -132,16 +216,24 @@ type PlayerAnalyzer struct {
 
 	// Settings
 	Settings *Settings
+
+	// Predictive camera (live rounds): model + switching rules
+	Model        *Model
+	Predict      PredictConfig
+	featureState *FeatureState
+	probs        map[string]float64
 }
 
 // NewPlayerAnalyzer creates a new Player Analyzer
 func NewPlayerAnalyzer() *PlayerAnalyzer {
 	return &PlayerAnalyzer{
-		lastSwitchTime:          time.Now(),
+		lastSwitchTime:          Now(),
 		minSwitchInterval:       2 * time.Second, // Reduced from 3s for more responsive switching
 		positionWarningShown:    false,
-		currentPlayerSwitchTime: time.Now(),
-		Settings:                LoadSettings(),   // Load settings from file or use defaults
+		currentPlayerSwitchTime: Now(),
+		Settings:                LoadSettings(), // Load settings from file or use defaults
+		Model:                   DefaultModel(),
+		Predict:                 DefaultPredictConfig(),
 		maxStickyTime:           15 * time.Second, // Max 15s on one player
 		lastEncounterPlayers:    make([]string, 0),
 		combatWinnerBonus:       make(map[string]float64),
@@ -152,6 +244,8 @@ func NewPlayerAnalyzer() *PlayerAnalyzer {
 		playerHealth:            make(map[string]int),
 		damageDealtBonus:        make(map[string]float64),
 		damageDealtTime:         make(map[string]time.Time),
+		killBonus:               make(map[string]float64),
+		killTime:                make(map[string]time.Time),
 	}
 }
 
@@ -172,7 +266,7 @@ func CalculateDistance3D(pos1, pos2 Position) float64 {
 
 // parsePositionString parses position from string format "X, Y, Z"
 // CS2 sends position as string like "-1520.06, 430.89, -63.97"
-func parsePositionString(posStr string) Position {
+func ParsePositionString(posStr string) Position {
 	parts := strings.Split(posStr, ",")
 	if len(parts) != 3 {
 		LogVerbose("[ANALYZER] ⚠️  Invalid position string format: '%s'", posStr)
@@ -209,7 +303,7 @@ func GetPlayerInfo(gameState map[string]interface{}) []PlayerInfo {
 
 		// Only living players
 		state, _ := playerMap["state"].(map[string]interface{})
-		health := getIntValue(state, "health")
+		health := GetIntValue(state, "health")
 		if health <= 0 {
 			continue
 		}
@@ -220,40 +314,40 @@ func GetPlayerInfo(gameState map[string]interface{}) []PlayerInfo {
 		if posData, hasPos := playerMap["position"]; hasPos {
 			// Try as string first (CS2 format)
 			if posStr, ok := posData.(string); ok {
-				position = parsePositionString(posStr)
+				position = ParsePositionString(posStr)
 
 				if LogLevel >= 1 {
 					if position.X == 0 && position.Y == 0 && position.Z == 0 {
 						LogVerbose("[ANALYZER] ⚠️  Player %s: position string is '%s' but parsed as ZERO!",
-							getStringValue(playerMap, "name"), posStr)
+							GetStringValue(playerMap, "name"), posStr)
 					} else {
 						LogVerbose("[ANALYZER] ✓ Player %s position: X=%.1f Y=%.1f Z=%.1f (from string '%s')",
-							getStringValue(playerMap, "name"), position.X, position.Y, position.Z, posStr)
+							GetStringValue(playerMap, "name"), position.X, position.Y, position.Z, posStr)
 					}
 				}
 			} else if posMap, ok := posData.(map[string]interface{}); ok {
 				// Fallback: try as map (old format or other implementations)
 				position = Position{
-					X: getFloatValue(posMap, "x"),
-					Y: getFloatValue(posMap, "y"),
-					Z: getFloatValue(posMap, "z"),
+					X: GetFloatValue(posMap, "x"),
+					Y: GetFloatValue(posMap, "y"),
+					Z: GetFloatValue(posMap, "z"),
 				}
 
 				if LogLevel >= 1 {
 					LogVerbose("[ANALYZER] ✓ Player %s position from map: X=%.1f Y=%.1f Z=%.1f",
-						getStringValue(playerMap, "name"), position.X, position.Y, position.Z)
+						GetStringValue(playerMap, "name"), position.X, position.Y, position.Z)
 				}
 			} else {
 				if LogLevel >= 1 {
 					LogVerbose("[ANALYZER] ⚠️  Player %s: position has unexpected type %T",
-						getStringValue(playerMap, "name"), posData)
+						GetStringValue(playerMap, "name"), posData)
 				}
 				position = Position{X: 0, Y: 0, Z: 0}
 			}
 		} else {
 			if LogLevel >= 1 {
 				LogVerbose("[ANALYZER] ❌ Player %s: NO 'position' key in GSI data!",
-					getStringValue(playerMap, "name"))
+					GetStringValue(playerMap, "name"))
 			}
 			position = Position{X: 0, Y: 0, Z: 0}
 		}
@@ -262,16 +356,30 @@ func GetPlayerInfo(gameState map[string]interface{}) []PlayerInfo {
 
 		player := PlayerInfo{
 			SteamID:        steamID,
-			Name:           getStringValue(playerMap, "name"),
-			Team:           getStringValue(playerMap, "team"),
+			Name:           GetStringValue(playerMap, "name"),
+			Team:           GetStringValue(playerMap, "team"),
 			Position:       position,
 			Health:         health,
-			Armor:          getIntValue(state, "armor"),
-			Money:          getIntValue(state, "money"),
-			Kills:          getIntValue(matchStats, "kills"),
-			Deaths:         getIntValue(matchStats, "deaths"),
-			EquipmentValue: getIntValue(state, "equip_value"),
-			HasDefuser:     getBoolValue(state, "defusekit"),
+			Armor:          GetIntValue(state, "armor"),
+			Money:          GetIntValue(state, "money"),
+			Kills:          GetIntValue(matchStats, "kills"),
+			Deaths:         GetIntValue(matchStats, "deaths"),
+			EquipmentValue: GetIntValue(state, "equip_value"),
+			HasDefuser:     GetBoolValue(state, "defusekit"),
+			// FIX: ActiveWeapon was never filled here, which silently disabled
+			// damage-dealer detection, sniper-kill detection and long-range logic.
+			ActiveWeapon: getActiveWeapon(playerMap),
+		}
+		if slot, ok := playerMap["observer_slot"].(float64); ok {
+			player.Slot = int(slot) + 1
+		}
+		// Aim direction: CS2 sends "forward" as a string "x, y, z" (unit vector)
+		if fwdStr, ok := playerMap["forward"].(string); ok && fwdStr != "" {
+			fwd := ParsePositionString(fwdStr)
+			if fwd.X != 0 || fwd.Y != 0 || fwd.Z != 0 {
+				player.Forward = fwd
+				player.HasForward = true
+			}
 		}
 
 		players = append(players, player)
@@ -423,6 +531,24 @@ func CalculateEncounterPriority(p1, p2 PlayerInfo, distance float64, hasPosition
 		priority += 20
 	}
 
+	// 6. Aim direction: distance alone can't see walls. If someone is aiming at
+	// the other player a fight is likely; if neither is looking at the other,
+	// they are probably separated by a wall/floor.
+	c1, ok1 := aimCos(p1, p2)
+	c2, ok2 := aimCos(p2, p1)
+	if ok1 && ok2 {
+		a1 := c1 >= aimOnTargetCos
+		a2 := c2 >= aimOnTargetCos
+		switch {
+		case a1 && a2:
+			priority += 70 // Both looking at each other: duel
+		case a1 || a2:
+			priority += 40 // One is aiming at the other
+		case c1 < aimAwayCos && c2 < aimAwayCos:
+			priority -= 30 // Neither looking at the other
+		}
+	}
+
 	return priority
 }
 
@@ -463,7 +589,7 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			if winnerID != pa.currentSpectatedID && pa.currentSpectatedID != "" {
 				// Give significant bonus for upset victory
 				pa.combatWinnerBonus[winnerID] = pa.Settings.UpsetVictoryBonus
-				pa.combatWinnerTime[winnerID] = time.Now()
+				pa.combatWinnerTime[winnerID] = Now()
 				pa.TotalUpsetVictories++ // Increment stats counter
 				upsetVictoryOccurred = true
 				upsetWinnerID = winnerID
@@ -477,7 +603,7 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 
 	// Clean up expired combat winner bonuses (older than configured duration)
 	for steamID, bonusTime := range pa.combatWinnerTime {
-		if time.Since(bonusTime) > time.Duration(pa.Settings.UpsetVictoryDuration)*time.Second {
+		if since(bonusTime) > time.Duration(pa.Settings.UpsetVictoryDuration)*time.Second {
 			delete(pa.combatWinnerBonus, steamID)
 			delete(pa.combatWinnerTime, steamID)
 		}
@@ -485,15 +611,35 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 
 	// Clean up expired sniper kill bonuses (older than configured duration)
 	for steamID, bonusTime := range pa.sniperKillTime {
-		if time.Since(bonusTime) > time.Duration(pa.Settings.SniperKillDuration)*time.Second {
+		if since(bonusTime) > time.Duration(pa.Settings.SniperKillDuration)*time.Second {
 			delete(pa.sniperKillBonus, steamID)
 			delete(pa.sniperKillTime, steamID)
+		}
+	}
+
+	// Clean up expired kill-follow bonuses
+	for steamID, bonusTime := range pa.killTime {
+		if since(bonusTime) > killFollowDuration {
+			delete(pa.killBonus, steamID)
+			delete(pa.killTime, steamID)
 		}
 	}
 
 	// KILL DETECTION: Track kills and detect sniper kills
 	sniperKillDetected := false
 	sniperKillerID := ""
+	killDetected := false
+	killerID := ""
+
+	// Demo seeks / reconnects make several kill counters jump in the same
+	// update. Those aren't real live kills, so ignore kill-follow then.
+	changedKillers := 0
+	for _, p := range players {
+		if old, ok := pa.playerKills[p.SteamID]; ok && p.Kills > old {
+			changedKillers++
+		}
+	}
+	killFollowAllowed := roundPhase == "live" && changedKillers <= 2
 
 	for _, p := range players {
 		oldKills, exists := pa.playerKills[p.SteamID]
@@ -519,23 +665,31 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 				}
 
 				pa.sniperKillBonus[p.SteamID] = bonusAmount
-				pa.sniperKillTime[p.SteamID] = time.Now()
+				pa.sniperKillTime[p.SteamID] = Now()
 				pa.TotalSniperKills++ // Increment stats counter
 				sniperKillDetected = true
 				sniperKillerID = p.SteamID
-			} else if strings.Contains(p.ActiveWeapon, "grenade") || strings.Contains(p.ActiveWeapon, "molotov") || strings.Contains(p.ActiveWeapon, "incendiary") {
+			} else if strings.Contains(p.ActiveWeapon, "grenade") || strings.Contains(p.ActiveWeapon, "molotov") || strings.Contains(p.ActiveWeapon, "incendiary") || p.ActiveWeapon == "weapon_c4" {
 				// Grenade/molotov kills - do NOT prioritize (player likely far away)
 				LogVerbose("[ANALYZER] 💥 Grenade/fire kill by %s - not prioritizing", p.Name)
+			} else if !killFollowAllowed {
+				LogVerbose("[ANALYZER] Kill by %s ignored for kill-follow (phase %s, %d counters changed)", p.Name, roundPhase, changedKillers)
 			} else {
-				// Regular weapon kill - small bonus
-				LogVerbose("[ANALYZER] ✓ Regular kill by %s", p.Name)
+				// NEW: any-weapon kill. The kill counter tells us exactly who
+				// killed (no guessing). A player who just killed is likely to
+				// keep fighting (entry frags, multi-kills), so follow them.
+				pa.killBonus[p.SteamID] = killFollowBonus
+				pa.killTime[p.SteamID] = Now()
+				killDetected = true
+				killerID = p.SteamID
+				LogInfo("💀 KILL by %s (%s) - following the killer", p.Name, p.ActiveWeapon)
 			}
 		}
 	}
 
 	// Clean up expired damage dealt bonuses (older than configured duration)
 	for steamID, bonusTime := range pa.damageDealtTime {
-		if time.Since(bonusTime) > time.Duration(pa.Settings.DamageDealtDuration)*time.Second {
+		if since(bonusTime) > time.Duration(pa.Settings.DamageDealtDuration)*time.Second {
 			delete(pa.damageDealtBonus, steamID)
 			delete(pa.damageDealtTime, steamID)
 		}
@@ -581,6 +735,11 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 				// Find nearby enemies with shooting weapons
 				var nearestAttacker *PlayerInfo
 				nearestDistance := 99999.0
+				// NEW: prefer the enemy whose crosshair is on the victim; the
+				// nearest enemy is often behind a wall and not the shooter.
+				var aimingAttacker *PlayerInfo
+				aimingDistance := 0.0
+				bestAim := 0.9 // ~25° minimum alignment
 
 				for _, attacker := range players {
 					// Skip same team
@@ -612,8 +771,19 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 
 					if distance <= maxRange && distance < nearestDistance {
 						nearestDistance = distance
-						nearestAttacker = &attacker
+						a := attacker
+						nearestAttacker = &a
 					}
+					if c, ok := aimCos(attacker, victim); ok && distance <= maxRange && c > bestAim {
+						bestAim = c
+						a := attacker
+						aimingAttacker = &a
+						aimingDistance = distance
+					}
+				}
+				if aimingAttacker != nil {
+					nearestAttacker = aimingAttacker
+					nearestDistance = aimingDistance
 				}
 
 				// If we found a likely attacker
@@ -623,7 +793,7 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 
 					// Give damage dealer temporary bonus
 					pa.damageDealtBonus[nearestAttacker.SteamID] = pa.Settings.DamageDealtBonus
-					pa.damageDealtTime[nearestAttacker.SteamID] = time.Now()
+					pa.damageDealtTime[nearestAttacker.SteamID] = Now()
 					pa.TotalDamageDetections++ // Increment stats counter
 					damageDealtDetected = true
 					damageDealerID = nearestAttacker.SteamID
@@ -631,6 +801,36 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			}
 		}
 	}
+
+	// FIX: damage-dealer switches used to be blocked by the normal 2s rate limit,
+	// so the camera often arrived after the kill. Let them bypass it, but keep a
+	// short minimum gap so several hits in a row don't make the camera flicker.
+	// PREDICTIVE MODE: during live rounds a trained model picks the player most
+	// likely to get the next kill. The old reactive switches are turned off
+	// unless Predict.EventSwitches is set.
+	predictive := roundPhase == "live" && pa.Model != nil && pa.Predict.Enabled && hasPositionData
+	if predictive && !pa.Predict.EventSwitches {
+		upsetVictoryOccurred = false
+		sniperKillDetected = false
+		damageDealtDetected = false
+		killDetected = false
+	}
+
+	const minDamageSwitchGap = 750 * time.Millisecond
+	damageBypass := damageDealtDetected && damageDealerID != pa.currentSpectatedID &&
+		since(pa.lastSwitchTime) >= minDamageSwitchGap
+
+	// NEW: follow a killer immediately if they still have enemies around
+	killSwitch := false
+	if killDetected && killerID != pa.currentSpectatedID {
+		for _, p := range players {
+			if p.SteamID == killerID {
+				killSwitch = hasEnemyNearby(p, players, pa.Settings.MaxEncounterDistance)
+				break
+			}
+		}
+	}
+	killBypass := killSwitch && since(pa.lastSwitchTime) >= minEventSwitchGap
 
 	// PRIORITY: Check if currently spectated player is dead OR upset victory occurred
 	if pa.currentSpectatedID != "" {
@@ -646,13 +846,19 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			LogInfo("☠️  Currently spectated player DIED - forcing immediate switch!")
 			pa.currentSpectatedID = "" // Reset to force switch
 			// Skip rate limiting when player dies
-		} else if upsetVictoryOccurred || sniperKillDetected {
-			// Skip rate limiting for upset victory or sniper kill - we want immediate switch
+		} else if predictive || upsetVictoryOccurred || sniperKillDetected || damageBypass || killBypass {
+			// Skip rate limiting for upset victory, sniper kill or damage dealt - we want immediate switch
 			if upsetVictoryOccurred {
 				LogVerbose("[ANALYZER] Upset victory detected - bypassing rate limit for immediate switch")
 			}
 			if sniperKillDetected {
 				LogVerbose("[ANALYZER] Sniper kill detected - bypassing rate limit for immediate switch to killer")
+			}
+			if damageBypass {
+				LogVerbose("[ANALYZER] Damage dealt detected - bypassing rate limit for immediate switch to shooter")
+			}
+			if killBypass {
+				LogVerbose("[ANALYZER] Kill detected - bypassing rate limit for immediate switch to killer")
 			}
 		} else {
 			// Phase-specific switching logic
@@ -679,12 +885,12 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			}
 
 			// Check if we've been on current player too long (forced switch)
-			timeOnCurrentPlayer := time.Since(pa.currentPlayerSwitchTime).Seconds()
+			timeOnCurrentPlayer := since(pa.currentPlayerSwitchTime).Seconds()
 			if timeOnCurrentPlayer >= maxTimeOnPlayer {
 				// Force immediate switch by bypassing rate limit (don't log yet, wait until we actually switch)
-			} else if time.Since(pa.lastSwitchTime) < switchInterval {
+			} else if since(pa.lastSwitchTime) < switchInterval {
 				// Normal rate limiting for alive player
-				timeSinceLastSwitch := time.Since(pa.lastSwitchTime).Seconds()
+				timeSinceLastSwitch := since(pa.lastSwitchTime).Seconds()
 				LogVerbose("[ANALYZER] Rate limiting active - waited %.1fs of %.0fs", timeSinceLastSwitch, switchInterval.Seconds())
 				return ""
 			}
@@ -692,7 +898,7 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 	} else {
 		// No one spectated yet, check normal rate limit
 		// BUT: Skip if upset victory or sniper kill occurred
-		if !upsetVictoryOccurred && !sniperKillDetected {
+		if !predictive && !upsetVictoryOccurred && !sniperKillDetected && !damageBypass && !killBypass {
 			switchInterval := pa.minSwitchInterval
 
 			switch roundPhase {
@@ -707,8 +913,8 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 				}
 			}
 
-			if time.Since(pa.lastSwitchTime) < switchInterval {
-				timeSinceLastSwitch := time.Since(pa.lastSwitchTime).Seconds()
+			if since(pa.lastSwitchTime) < switchInterval {
+				timeSinceLastSwitch := since(pa.lastSwitchTime).Seconds()
 				LogVerbose("[ANALYZER] Rate limiting active - waited %.1fs of %.0fs", timeSinceLastSwitch, switchInterval.Seconds())
 				return ""
 			}
@@ -735,9 +941,9 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 
 		if winnerAlive && upsetWinnerID != pa.currentSpectatedID {
 			LogInfo("🎯 Switching to upset victory winner immediately!")
-			pa.lastSwitchTime = time.Now()
+			pa.lastSwitchTime = Now()
 			pa.currentSpectatedID = upsetWinnerID
-			pa.currentPlayerSwitchTime = time.Now()
+			pa.currentPlayerSwitchTime = Now()
 			return upsetWinnerID
 		}
 	}
@@ -790,12 +996,22 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 
 			if shouldSwitch {
 				LogInfo("🎯 Switching to sniper killer immediately! (%s)", reason)
-				pa.lastSwitchTime = time.Now()
+				pa.lastSwitchTime = Now()
 				pa.currentSpectatedID = sniperKillerID
-				pa.currentPlayerSwitchTime = time.Now()
+				pa.currentPlayerSwitchTime = Now()
 				return sniperKillerID
 			}
 		}
+	}
+
+	// PRIORITY: If someone just got a kill and still has enemies around, follow them
+	if killSwitch {
+		LogInfo("💀 Switching to killer immediately!")
+		pa.lastSwitchTime = Now()
+		pa.previousSpectatedID = pa.currentSpectatedID
+		pa.currentSpectatedID = killerID
+		pa.currentPlayerSwitchTime = Now()
+		return killerID
 	}
 
 	// PRIORITY: If damage was dealt, switch to damage dealer immediately
@@ -809,11 +1025,13 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			}
 		}
 
-		if dealerAlive && damageDealerID != pa.currentSpectatedID {
+		if dealerAlive && damageDealerID != pa.currentSpectatedID && pa.currentInAction(actionProtectTime) {
+			LogVerbose("[ANALYZER] Damage elsewhere, but current player is in action - staying")
+		} else if dealerAlive && damageDealerID != pa.currentSpectatedID {
 			LogInfo("💥 Switching to damage dealer immediately!")
-			pa.lastSwitchTime = time.Now()
+			pa.lastSwitchTime = Now()
 			pa.currentSpectatedID = damageDealerID
-			pa.currentPlayerSwitchTime = time.Now()
+			pa.currentPlayerSwitchTime = Now()
 			return damageDealerID
 		}
 	}
@@ -863,8 +1081,33 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			pa.positionWarningShown = true
 		} else {
 			LogInfo("✅ Position data is available and working!")
+			hasAim := false
+			for _, p := range players {
+				if p.HasForward {
+					hasAim = true
+					break
+				}
+			}
+			if hasAim {
+				LogInfo("✅ Aim direction (forward) is available - aim-based detection enabled")
+			} else {
+				LogInfo("⚠️  No aim direction (forward) in GSI - aim-based detection disabled")
+			}
 			pa.positionWarningShown = true
 		}
+	}
+
+	if predictive {
+		choice := pa.predictiveChoice(players)
+		if choice != "" && choice != pa.currentSpectatedID {
+			LogInfo("🔮 PREDICT: switching to %s (P=%.2f)", getPlayerNameByID(choice, players), pa.probs[choice])
+			pa.lastSwitchTime = Now()
+			pa.previousSpectatedID = pa.currentSpectatedID
+			pa.currentSpectatedID = choice
+			pa.currentPlayerSwitchTime = Now()
+			return choice
+		}
+		return ""
 	}
 
 	// Find encounters
@@ -880,7 +1123,7 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 		// TIME LIMITS:
 		// - Normal: 15s limit
 		// - Clutch (<4 players) or Active Encounter (Priority >140): 25s limit
-		timeOnCurrentPlayer := time.Since(pa.currentPlayerSwitchTime).Seconds()
+		timeOnCurrentPlayer := since(pa.currentPlayerSwitchTime).Seconds()
 		baseIsStuckTooLong := timeOnCurrentPlayer > pa.maxStickyTime.Seconds()
 		const maxExtendedStickyTime = 25.0 // Absolute maximum for any situation
 
@@ -1009,6 +1252,18 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			}
 		}
 
+		// Apply kill-follow bonus (any weapon)
+		for i := range encounters {
+			if b := pa.killBonus[encounters[i].Player1.SteamID]; b > 0 {
+				encounters[i].Priority += b
+				LogVerbose("[ANALYZER] 💀 Kill bonus for %s: +%.0f", encounters[i].Player1.Name, b)
+			}
+			if b := pa.killBonus[encounters[i].Player2.SteamID]; b > 0 {
+				encounters[i].Priority += b
+				LogVerbose("[ANALYZER] 💀 Kill bonus for %s: +%.0f", encounters[i].Player2.Name, b)
+			}
+		}
+
 		// Re-sort after applying bonuses
 		sort.Slice(encounters, func(i, j int) bool {
 			return encounters[i].Priority > encounters[j].Priority
@@ -1059,6 +1314,18 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			p1Score += pa.getRifleWeaponBonus(encounter.Player1.ActiveWeapon)
 			p2Score += pa.getRifleWeaponBonus(encounter.Player2.ActiveWeapon)
 
+			// NEW: prefer the POV of whoever is aiming at the other player
+			if isAimingAt(encounter.Player1, encounter.Player2) {
+				p1Score += 25
+			}
+			if isAimingAt(encounter.Player2, encounter.Player1) {
+				p2Score += 25
+			}
+
+			// NEW: prefer a player who just got a kill
+			p1Score += pa.killBonus[encounter.Player1.SteamID] / 4
+			p2Score += pa.killBonus[encounter.Player2.SteamID] / 4
+
 			if p1Score > p2Score {
 				bestPlayerID = encounter.Player1.SteamID
 				bestPlayerName = encounter.Player1.Name
@@ -1084,15 +1351,46 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			return ""
 		}
 
+		// ANTI PING-PONG: an encounter-based switch away from a living player
+		// must (1) wait a minimum dwell time and (2) clearly beat the current
+		// player's own best encounter. Going straight back to the player we
+		// just left needs an even bigger margin.
+		if bestPlayerID != pa.currentSpectatedID && pa.currentSpectatedID != "" && roundPhase == "live" {
+			timeOnCurrent := since(pa.currentPlayerSwitchTime)
+			if timeOnCurrent < pa.maxStickyTime {
+				currentBest := 0.0
+				for _, e := range encounters {
+					if e.Player1.SteamID == pa.currentSpectatedID || e.Player2.SteamID == pa.currentSpectatedID {
+						if e.Priority > currentBest {
+							currentBest = e.Priority
+						}
+					}
+				}
+				margin := switchMargin
+				if bestPlayerID == pa.previousSpectatedID && since(pa.lastSwitchTime) < returnWindow {
+					margin = returnMargin
+				}
+				if timeOnCurrent < minDwellTime {
+					LogVerbose("[ANALYZER] ⏸️  Holding camera (%.1fs < %.0fs min dwell)", timeOnCurrent.Seconds(), minDwellTime.Seconds())
+					return ""
+				}
+				if currentBest > 0 && encounter.Priority < currentBest+margin {
+					LogVerbose("[ANALYZER] ⏸️  Holding camera: %.1f doesn't beat current %.1f by %.0f", encounter.Priority, currentBest, margin)
+					return ""
+				}
+			}
+		}
+
 		// Only switch if it's a different player
 		if bestPlayerID != pa.currentSpectatedID {
-			pa.lastSwitchTime = time.Now()
+			pa.lastSwitchTime = Now()
+			pa.previousSpectatedID = pa.currentSpectatedID
 			pa.currentSpectatedID = bestPlayerID
-			pa.currentPlayerSwitchTime = time.Now() // Reset sticky timer
+			pa.currentPlayerSwitchTime = Now() // Reset sticky timer
 			return bestPlayerID
 		} else {
 			// Already on this player - check if we need to force switch in warmup/freezetime/timeout
-			timeOnCurrent := time.Since(pa.currentPlayerSwitchTime).Seconds()
+			timeOnCurrent := since(pa.currentPlayerSwitchTime).Seconds()
 			var maxTime float64
 			forceSwitch := false
 
@@ -1118,15 +1416,15 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 					}
 
 					LogInfo("⏱️  Max time (%.0fs) exceeded in %s - switching for variety", maxTime, roundPhase)
-					pa.lastSwitchTime = time.Now()
+					pa.lastSwitchTime = Now()
 					pa.previousSpectatedID = pa.currentSpectatedID
 					pa.currentSpectatedID = alternativeID
-					pa.currentPlayerSwitchTime = time.Now()
+					pa.currentPlayerSwitchTime = Now()
 					return alternativeID
 				} else {
 					// Normal game: reset timer with offset to retry later
 					LogVerbose("[ANALYZER] Max time exceeded but already on best player - will retry in 3s")
-					pa.currentPlayerSwitchTime = time.Now().Add(-time.Duration(maxTime-3) * time.Second)
+					pa.currentPlayerSwitchTime = Now().Add(-time.Duration(maxTime-3) * time.Second)
 				}
 			} else {
 				LogVerbose("[ANALYZER] Already spectating this player, no switch needed")
@@ -1169,6 +1467,13 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			}
 		}
 
+		// Apply kill-follow bonus even in fallback mode
+		for i := range players {
+			if bonus, exists := pa.killBonus[players[i].SteamID]; exists {
+				players[i].EquipmentValue += int(bonus * 100)
+			}
+		}
+
 		// Fallback: Player with highest equipment/kills
 		sort.Slice(players, func(i, j int) bool {
 			if players[i].EquipmentValue != players[j].EquipmentValue {
@@ -1182,7 +1487,7 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 			// In other phases: Switch to best player immediately (after rate limit)
 			if roundPhase == "warmup" || roundPhase == "freezetime" {
 				// Force switch mode: only switch every 7.5 seconds for consistent pacing
-				timeOnCurrent := time.Since(pa.currentPlayerSwitchTime).Seconds()
+				timeOnCurrent := since(pa.currentPlayerSwitchTime).Seconds()
 				if timeOnCurrent >= 7.5 {
 					// Time to switch: find next player (not current, not previous)
 					var nextPlayerID string
@@ -1224,10 +1529,10 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 
 					if nextPlayerID != "" {
 						LogInfo("⏱️  Max time (7.5s) exceeded in %s - switching for variety", roundPhase)
-						pa.lastSwitchTime = time.Now()
+						pa.lastSwitchTime = Now()
 						pa.previousSpectatedID = pa.currentSpectatedID
 						pa.currentSpectatedID = nextPlayerID
-						pa.currentPlayerSwitchTime = time.Now()
+						pa.currentPlayerSwitchTime = Now()
 						return nextPlayerID
 					}
 				}
@@ -1235,7 +1540,7 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 				return ""
 			} else {
 				// Normal game phases (live/timeout): wait at least 5 seconds before switching in fallback
-				timeOnCurrent := time.Since(pa.currentPlayerSwitchTime).Seconds()
+				timeOnCurrent := since(pa.currentPlayerSwitchTime).Seconds()
 				var minTime float64
 
 				if roundPhase == "timeout" {
@@ -1250,10 +1555,10 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 					if bestPlayerID != pa.currentSpectatedID && len(players) > 1 {
 						// Switch to best player after minimum time
 						LogInfo("⏱️  Fallback: %.0fs elapsed, switching to better player", timeOnCurrent)
-						pa.lastSwitchTime = time.Now()
+						pa.lastSwitchTime = Now()
 						pa.previousSpectatedID = pa.currentSpectatedID
 						pa.currentSpectatedID = bestPlayerID
-						pa.currentPlayerSwitchTime = time.Now()
+						pa.currentPlayerSwitchTime = Now()
 						return bestPlayerID
 					}
 				}
@@ -1270,33 +1575,59 @@ func (pa *PlayerAnalyzer) GetBestPlayerToSpectate(gameState map[string]interface
 // This is called when we detect that CS is spectating a different player than we think
 func (pa *PlayerAnalyzer) SyncCurrentPlayer(steamID string) {
 	pa.currentSpectatedID = steamID
-	pa.currentPlayerSwitchTime = time.Now() // Reset sticky timer to prevent immediate switch
+	pa.currentPlayerSwitchTime = Now() // Reset sticky timer to prevent immediate switch
 	LogVerbose("[ANALYZER] Synced to actual spectated player: %s", steamID)
 }
 
+// RecentlySwitched reports whether the analyzer issued a camera switch within d.
+// Used to ignore stale GSI "spectated player" data right after a switch.
+func (pa *PlayerAnalyzer) RecentlySwitched(d time.Duration) bool {
+	return since(pa.lastSwitchTime) < d
+}
+
+// getActiveWeapon returns the name of the player's active weapon from GSI data
+// ("weapons": {"weapon_0": {"name": "weapon_ak47", "state": "active"}, ...})
+func getActiveWeapon(playerMap map[string]interface{}) string {
+	weapons, ok := playerMap["weapons"].(map[string]interface{})
+	if !ok {
+		return ""
+	}
+	for _, weaponData := range weapons {
+		weaponMap, ok := weaponData.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if state, _ := weaponMap["state"].(string); state == "active" {
+			name, _ := weaponMap["name"].(string)
+			return name
+		}
+	}
+	return ""
+}
+
 // Helper functions for safe type assertions
-func getStringValue(m map[string]interface{}, key string) string {
+func GetStringValue(m map[string]interface{}, key string) string {
 	if val, ok := m[key].(string); ok {
 		return val
 	}
 	return "Unknown"
 }
 
-func getIntValue(m map[string]interface{}, key string) int {
+func GetIntValue(m map[string]interface{}, key string) int {
 	if val, ok := m[key].(float64); ok {
 		return int(val)
 	}
 	return 0
 }
 
-func getFloatValue(m map[string]interface{}, key string) float64 {
+func GetFloatValue(m map[string]interface{}, key string) float64 {
 	if val, ok := m[key].(float64); ok {
 		return val
 	}
 	return 0.0
 }
 
-func getBoolValue(m map[string]interface{}, key string) bool {
+func GetBoolValue(m map[string]interface{}, key string) bool {
 	if val, ok := m[key].(bool); ok {
 		return val
 	}

@@ -102,6 +102,8 @@ func (a *App) StartAutoDirector() error {
 		app:                 a, // Set reference to App for callbacks
 	}
 
+	a.autoDirector.spectatorController.GetSpectated = a.autoDirector.gsiServer.SpectatedSteamID
+
 	// Start GSI server in background
 	go func() {
 		if err := a.autoDirector.gsiServer.Start(); err != nil {
@@ -167,7 +169,7 @@ func (a *App) GetStatus() StatusInfo {
 	}
 
 	if a.autoDirector != nil && a.autoDirector.playerAnalyzer != nil {
-		status.CurrentPlayer = a.autoDirector.playerAnalyzer.currentSpectatedID
+		status.CurrentPlayer = a.autoDirector.playerAnalyzer.CurrentSpectatedID()
 		// Get current player name from last players data
 		for _, p := range a.lastPlayers {
 			if p.SteamID == status.CurrentPlayer {

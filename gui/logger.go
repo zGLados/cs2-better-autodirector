@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cs2-autodirector-gui/director"
 	"fmt"
 	"io"
 	"log"
@@ -23,6 +24,7 @@ var (
 // InitLogging sets up logging based on verbose mode
 func InitLogging(level int) error {
 	LogLevel = level
+	director.LogLevel = level
 
 	// Create logs directory if it doesn't exist
 	logsDir := filepath.Join(getConfigDir(), "logs")

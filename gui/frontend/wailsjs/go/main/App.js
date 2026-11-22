@@ -6,24 +6,8 @@ export function ExportSettings() {
   return window['go']['main']['App']['ExportSettings']();
 }
 
-export function FetchFaceitMatchData(arg1) {
-  return window['go']['main']['App']['FetchFaceitMatchData'](arg1);
-}
-
 export function GetEncounters() {
   return window['go']['main']['App']['GetEncounters']();
-}
-
-export function GetFaceitAPIKey() {
-  return window['go']['main']['App']['GetFaceitAPIKey']();
-}
-
-export function GetGotvConnectCommand() {
-  return window['go']['main']['App']['GetGotvConnectCommand']();
-}
-
-export function GetLastMatchData() {
-  return window['go']['main']['App']['GetLastMatchData']();
 }
 
 export function GetPlayers() {
@@ -46,24 +30,28 @@ export function ImportSettings() {
   return window['go']['main']['App']['ImportSettings']();
 }
 
-export function InitFaceitClient(arg1) {
-  return window['go']['main']['App']['InitFaceitClient'](arg1);
+export function RecordDamageDetection() {
+  return window['go']['main']['App']['RecordDamageDetection']();
+}
+
+export function RecordSniperKill() {
+  return window['go']['main']['App']['RecordSniperKill']();
+}
+
+export function RecordSwitch() {
+  return window['go']['main']['App']['RecordSwitch']();
+}
+
+export function RecordUpsetVictory() {
+  return window['go']['main']['App']['RecordUpsetVictory']();
 }
 
 export function ResetSettings() {
   return window['go']['main']['App']['ResetSettings']();
 }
 
-export function SaveFaceitAPIKey(arg1) {
-  return window['go']['main']['App']['SaveFaceitAPIKey'](arg1);
-}
-
 export function SaveSettings(arg1) {
   return window['go']['main']['App']['SaveSettings'](arg1);
-}
-
-export function SendToOpenHud() {
-  return window['go']['main']['App']['SendToOpenHud']();
 }
 
 export function StartAutoDirector() {
@@ -72,4 +60,16 @@ export function StartAutoDirector() {
 
 export function StopAutoDirector() {
   return window['go']['main']['App']['StopAutoDirector']();
+}
+
+export function StopOpenHudScoreUpdates() {
+  return window['go']['main']['App']['StopOpenHudScoreUpdates']();
+}
+
+export function UpdateEncounters(arg1) {
+  return window['go']['main']['App']['UpdateEncounters'](arg1);
+}
+
+export function UpdatePlayers(arg1) {
+  return window['go']['main']['App']['UpdatePlayers'](arg1);
 }

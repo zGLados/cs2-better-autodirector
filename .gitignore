@@ -68,3 +68,10 @@ Output/
 # Downloads
 *.zip
 *.tar.gz
+
+# replay outputs
+tools/replay/*.csv
+tools/replay/models/
+
+# portable build output (root build folder only; gui/build holds app assets)
+/build/

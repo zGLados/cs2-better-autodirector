@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"sort"
 	"time"
 
@@ -11,6 +12,10 @@ import (
 type SpectatorController struct {
 	steamIDToSlot  map[string]int
 	currentPlayers []PlayerInfo
+	netcon         *NetconClient
+	// GetSpectated returns the SteamID CS2 is currently spectating (from GSI).
+	// Used to confirm key-press switches. Optional.
+	GetSpectated func() string
 }
 
 // NewSpectatorController creates a new Spectator Controller
@@ -18,6 +23,7 @@ func NewSpectatorController() *SpectatorController {
 	return &SpectatorController{
 		steamIDToSlot:  make(map[string]int),
 		currentPlayers: make([]PlayerInfo, 0),
+		netcon:         NewNetconClient(NetconPort),
 	}
 }
 
@@ -161,7 +167,15 @@ func (sc *SpectatorController) SwitchToPlayer(steamID string) bool {
 
 	LogInfo("➡️  Switching to: %s (Slot %d)", playerName, slot)
 
-	// Press the corresponding number key
+	// Preferred path: send the same command the key binding runs
+	// (spectator_bindings.cfg: key N -> spec_player_by_index N-1) via netcon.
+	// Takes milliseconds instead of ~1.1s of key presses and needs no focus.
+	if err := sc.netcon.Send(fmt.Sprintf("spec_player_by_index %d", slot-1)); err == nil {
+		LogVerbose("[CONTROLLER] ✓ Switched via netcon (spec_player_by_index %d)", slot-1)
+		return true
+	}
+
+	// Press the corresponding number key (spectator_bindings.cfg)
 	var key string
 	if slot == 10 {
 		key = "0"
@@ -169,29 +183,48 @@ func (sc *SpectatorController) SwitchToPlayer(steamID string) bool {
 		key = string(rune('0' + slot))
 	}
 
-	// Use more reliable key press method
-	// Hold key down briefly instead of just tapping
-	LogVerbose("[CONTROLLER] Pressing key '%s' (hold method)...", key)
-
-	// Method: KeyToggle with multiple repetitions for maximum reliability
-	// This helps overcome focus issues and missed key presses
-
-	// Repeat 3 times with delays (increased from 2x for better reliability)
-	for i := 0; i < 3; i++ {
+	// FIX: the old method always pressed the key 3 times with 150ms holds and a
+	// final pause (~1.15s per switch, blocking the main loop), so the camera
+	// often arrived after the kill. Now we press once with a short hold and
+	// confirm via GSI that CS2 is actually on the target player; only if it
+	// isn't do we press again (max 3 attempts, same worst case as before).
+	const maxAttempts = 3
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		robotgo.KeyToggle(key, "down")
-		time.Sleep(150 * time.Millisecond) // Increased from 100ms
+		time.Sleep(40 * time.Millisecond)
 		robotgo.KeyToggle(key, "up")
-		time.Sleep(150 * time.Millisecond) // Increased from 100ms
 
-		if i < 2 {
-			time.Sleep(50 * time.Millisecond) // Brief pause between repetitions
+		if sc.GetSpectated == nil {
+			// No way to confirm: keep a second press for reliability
+			if attempt == 2 {
+				break
+			}
+			time.Sleep(60 * time.Millisecond)
+			continue
 		}
+
+		// Wait for GSI to report the new player (GSI throttle+buffer is ~0.2s)
+		deadline := time.Now().Add(350 * time.Millisecond)
+		reported := ""
+		for time.Now().Before(deadline) {
+			reported = sc.GetSpectated()
+			if reported == steamID {
+				LogVerbose("[CONTROLLER] ✓ Key '%s' confirmed by GSI (attempt %d)", key, attempt)
+				return true
+			}
+			time.Sleep(25 * time.Millisecond)
+		}
+		if reported == "" {
+			// GSI doesn't report the spectated player: can't confirm, stop here
+			LogVerbose("[CONTROLLER] GSI does not report the spectated player - cannot confirm switch")
+			return true
+		}
+		LogVerbose("[CONTROLLER] Key '%s' not confirmed yet (attempt %d/%d)", key, attempt, maxAttempts)
 	}
 
-	time.Sleep(250 * time.Millisecond) // Final pause before next operation
-
-	LogVerbose("[CONTROLLER] ✓ Key sequence completed (3x repetition)")
-
+	if sc.GetSpectated != nil {
+		LogInfo("⚠️  Switch to %s not confirmed by GSI - is CS2 in the foreground and spectator_bindings active (F9)?", playerName)
+	}
 	return true
 }
 

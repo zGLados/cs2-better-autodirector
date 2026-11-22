@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cs2-autodirector-gui/director"
 	"embed"
 	"flag"
 	"fmt"
@@ -41,6 +42,8 @@ func main() {
 	nogui := flag.Bool("nogui", false, "Run in CLI mode without GUI")
 	verbose := flag.Bool("v", false, "Enable verbose logging")
 	veryVerbose := flag.Bool("vv", false, "Enable very verbose (trace) logging")
+	flag.BoolVar(&director.PredictionDisabled, "legacy", false, "Use the old encounter-based camera logic instead of the prediction model")
+	flag.IntVar(&NetconPort, "netconport", NetconPort, "Experimental: CS2 netcon port (the CS2 client currently does not open it); 0 = disabled")
 	flag.Parse()
 
 	logLevel := 0
@@ -142,7 +145,7 @@ func runCLI(level int) {
 	defer CloseLogging()
 
 	// Banner
-	fmt.Println(`
+	fmt.Print(`
 ╔══════════════════════════════════════════════════════════════╗
 ║        CS2 Better Auto Director                              ║
 ║                                                              ║
@@ -192,10 +195,13 @@ type CLIAutoDirector struct {
 
 // NewCLIAutoDirector creates a new CLI AutoDirector instance
 func NewCLIAutoDirector() *CLIAutoDirector {
+	gsi := NewGSIServer("3000") // Port 3000 (same as GUI)
+	controller := NewSpectatorController()
+	controller.GetSpectated = gsi.SpectatedSteamID
 	return &CLIAutoDirector{
-		gsiServer:  NewGSIServer("3000"), // Port 3000 (same as GUI)
+		gsiServer:  gsi,
 		analyzer:   NewPlayerAnalyzer(),
-		controller: NewSpectatorController(),
+		controller: controller,
 		running:    false,
 	}
 }
@@ -278,7 +284,11 @@ func (ao *CLIAutoDirector) mainLoop() {
 
 				// Sync with actual spectated player from GSI
 				actualSpectatedID := ao.gsiServer.GetCurrentlySpectatedPlayer()
-				if actualSpectatedID != "" && actualSpectatedID != ao.analyzer.currentSpectatedID {
+				// FIX: right after we switch, GSI still reports the previous player for a few
+				// hundred ms. Syncing to that stale value undid our own switch and reset the
+				// sticky timer, so we ignore it during a short grace period.
+				if actualSpectatedID != "" && actualSpectatedID != ao.analyzer.CurrentSpectatedID() &&
+					!ao.analyzer.RecentlySwitched(syncGracePeriod) {
 					LogInfo("🔄 Synced spectated player: CS is on different player than expected")
 					ao.analyzer.SyncCurrentPlayer(actualSpectatedID)
 				}
